@@ -2,25 +2,48 @@ import argparse
 import asyncio
 import re
 import sys
+import os
+import hashlib
+import time
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup, NavigableString, Tag, Comment
 
+CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache")
+CACHE_EXPIRY = 300  # 5 minutes in seconds
+
 async def get_html(url):
+    if not os.path.exists(CACHE_DIR):
+        os.makedirs(CACHE_DIR)
+
+    url_hash = hashlib.md5(url.encode()).hexdigest()
+    cache_path = os.path.join(CACHE_DIR, f"{url_hash}.html")
+
+    if os.path.exists(cache_path):
+        mtime = os.path.getmtime(cache_path)
+        if time.time() - mtime < CACHE_EXPIRY:
+            # print(f"Using cached content for {url}...", file=sys.stderr)
+            with open(cache_path, "r", encoding="utf-8") as f:
+                return f.read()
+
     async with async_playwright() as p:
         # Note: Set headless=False if running locally to see the browser window
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
         # Set a timeout and wait for DOM content to ensure basic structure is there
-        print(f"Navigating to {url}...")
+        # print(f"Navigating to {url}...", file=sys.stderr)
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=60000)
             # Wait a few seconds for dynamic content to render
             await asyncio.sleep(5)
         except Exception as e:
-            print(f"Warning during navigation: {e}")
+            print(f"Warning during navigation: {e}", file=sys.stderr)
             
         content = await page.content()
         await browser.close()
+
+        with open(cache_path, "w", encoding="utf-8") as f:
+            f.write(content)
+            
         return content
 
 def convert_to_md(soup):

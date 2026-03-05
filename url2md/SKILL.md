@@ -25,6 +25,7 @@ python3 /root/.gemini/skills/url2md/url2md.py <URL> [--out-file <OUTPUT_FILE>]
 - **Browser Engine**: Playwright (Chromium)
 - **HTML Parser**: BeautifulSoup4
 - **Features**:
-  - Handles dynamic content by waiting for 5 seconds after DOM content is loaded.
-  - Converts headers (h1-h4), links, paragraphs, and tables.
-  - Cleans up the output by removing scripts, styles, and other non-content elements.
+  - **Caching**: Automatically caches rendered HTML in a `.cache` directory for 5 minutes. Subsequent requests for the same URL within this period will use the cached version to improve speed and reduce resource usage.
+  - **Dynamic Content**: Handles dynamic content by waiting for 5 seconds after DOM content is loaded.
+  - **Comprehensive Conversion**: Converts headers (h1-h4), links, paragraphs, and tables to clean Markdown.
+  - **Content Filtering**: Cleans up the output by removing scripts, styles, and other non-content elements.
