@@ -110,8 +110,23 @@ async def run(image_path, title, content):
             () => {
                 const noteElements = document.querySelectorAll('.note');
                 return Array.from(noteElements).map(el => {
-                    const infoText = el.querySelector('.info')?.innerText || "";
-                    return { title: infoText.split('\\n')[0].trim() };
+                    const infoEl = el.querySelector('.info');
+                    let title = "";
+                    if (infoEl) {
+                        const textNodes = Array.from(infoEl.childNodes)
+                            .map(n => n.innerText || n.textContent)
+                            .filter(t => t && t.trim().length > 0);
+                        if (textNodes[0] && (textNodes[0].includes("审核中") || textNodes[0].includes("未通过"))) {
+                            title = textNodes[1] || textNodes[0];
+                        } else {
+                            title = textNodes[0] || "";
+                        }
+                    }
+                    const statusTag = el.querySelector('.time_status .d-text, .time_status [class*="tag"], .info [class*="tag"]')?.innerText || "已发布";
+                    return { 
+                        title: title.split('\\n')[0].trim(),
+                        status: statusTag.trim()
+                    };
                 });
             }
             """
@@ -119,8 +134,8 @@ async def run(image_path, title, content):
             
             if notes:
                 import json
-                print("Latest Note in Manager (First Entry):")
-                print(json.dumps(notes[0], indent=2, ensure_ascii=False))
+                print("Latest 3 Notes in Manager:")
+                print(json.dumps(notes[:3], indent=2, ensure_ascii=False))
                 # Still output the full list for context if needed
                 print(f"RESULT_NOTES_DATA:{json.dumps(notes, ensure_ascii=False)}")
             else:
