@@ -1,4 +1,4 @@
-# Gemini Skills
+# Pica Skills
 
 A collection of specialized skills for Gemini CLI to automate workflows, including web content extraction and social media automation.
 
