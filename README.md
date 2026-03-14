@@ -56,8 +56,8 @@ Gemini CLI 自动化工作流技能库。
 
 ## 🔧 AI Agent Installation Guide | AI Agent 安装指南
 
-English: Use the following commands to install skills directly into your Gemini CLI.
-中文: 使用以下命令将技能直接安装到您的 Gemini CLI。
+Use the following commands to install skills directly into your Gemini CLI.
+使用以下命令将技能直接安装到您的 Gemini CLI。
 
 ```bash
 # Example: Install url2md skill
