@@ -5,10 +5,11 @@ import sys
 import os
 import hashlib
 import time
+import tempfile
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup, NavigableString, Tag, Comment
 
-CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache")
+CACHE_DIR = os.path.join(tempfile.gettempdir(), "gemini-url2md-cache")
 CACHE_EXPIRY = 300  # 5 minutes in seconds
 
 async def get_html(url):

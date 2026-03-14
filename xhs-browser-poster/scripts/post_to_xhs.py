@@ -2,8 +2,14 @@ import asyncio
 from playwright.async_api import async_playwright
 import os
 import sys
+import re
 
-async def run(image_path, title, content, tag):
+def parse_tags(content):
+    tags = re.findall(r'#(\S+)', content)
+    content_without_tags = re.sub(r'#\S+\s*', '', content).strip()
+    return content_without_tags, tags
+
+async def run(image_path, title, content):
     os.environ["NO_PROXY"] = "localhost,127.0.0.1"
     
     async with async_playwright() as p:
@@ -48,21 +54,24 @@ async def run(image_path, title, content, tag):
                 print("Fallback fill via evaluate on main page")
                 await page.evaluate(f"document.querySelector('[contenteditable=\"true\"]').innerText = `{content}`")
 
-            print(f"Adding tag: #{tag}")
-            await page.keyboard.type(f"#{tag}", delay=100)
-            await asyncio.sleep(2)
-            await page.keyboard.press("ArrowDown")
-            await asyncio.sleep(0.3)
-            await page.keyboard.press("ArrowUp")
-            await asyncio.sleep(0.3)
-            await page.keyboard.press("Enter")
-            print("Tag added.")
-            await asyncio.sleep(1)
+            content_without_tags, tags = parse_tags(content)
+            
+            for tag in tags:
+                print(f"Adding tag: #{tag}")
+                await page.keyboard.type(f"#{tag}", delay=100)
+                await asyncio.sleep(2)
+                await page.keyboard.press("ArrowDown")
+                await asyncio.sleep(0.3)
+                await page.keyboard.press("ArrowUp")
+                await asyncio.sleep(0.3)
+                await page.keyboard.press("Enter")
+                print(f"Tag #{tag} added.")
+                await asyncio.sleep(1)
 
             publish_btn = await page.wait_for_selector("button:has-text('发布')", timeout=5000)
             await publish_btn.click()
             print("Clicked publish button.")
-            await asyncio.sleep(5)
+            await asyncio.sleep(10)
 
             print("Navigating to Note Manager...")
             await page.goto("https://creator.xiaohongshu.com/new/note-manager")
@@ -79,7 +88,7 @@ async def run(image_path, title, content, tag):
             await page.close()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 5:
-        print("Usage: python post_to_xhs.py <image_path> <title> <content> <tag>")
+    if len(sys.argv) < 4:
+        print("Usage: python post_to_xhs.py <image_path> <title> <content>")
     else:
-        asyncio.run(run(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]))
+        asyncio.run(run(sys.argv[1], sys.argv[2], sys.argv[3]))

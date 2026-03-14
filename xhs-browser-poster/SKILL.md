@@ -30,7 +30,7 @@ Use `scripts/post_to_xhs.py` to publish and verify.
 - **Output**: Prints `RESULT_SCREENSHOT_PATH:<path>` showing the post in the Note Manager.
 
 ```bash
-python scripts/post_to_xhs.py "image.jpg" "Title" "Content" "tag" # tag 暂时只支持一个
+python scripts/post_to_xhs.py "image.jpg" "Title" "Content"
 ```
 
 ## Best Practices

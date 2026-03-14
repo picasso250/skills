@@ -15,9 +15,9 @@ async def run(prompt):
             print(f"Navigating to Gemini...")
             await page.goto("https://gemini.google.com/app", timeout=60000)
             
-            # Step 1: Wait 5s for page to settle
-            print("Waiting 5s for page to settle...")
-            await page.wait_for_timeout(5000)
+            # Step 1: Wait 10s for page to settle
+            print("Waiting 10s for page to settle...")
+            await page.wait_for_timeout(10000)
 
             # Step 2: Click 'Create image' button
             print("Clicking 'Create image' button...")
@@ -41,6 +41,8 @@ async def run(prompt):
             input_selector = "div[role='textbox']"
             await page.wait_for_selector(input_selector, timeout=15000)
             await page.fill(input_selector, prompt)
+            
+            await page.wait_for_timeout(1000)
             
             send_btn_selector = "button[aria-label*='Send'], button[aria-label*='发送']"
             await page.wait_for_selector(send_btn_selector, timeout=10000)
