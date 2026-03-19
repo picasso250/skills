@@ -79,6 +79,55 @@ def is_button_like(node: Tag) -> bool:
     return str(node.get("role", "")).strip().lower() == "button"
 
 
+def find_labeled_text(node: Tag) -> str:
+    node_id = str(node.get("id", "")).strip()
+    if node_id:
+        root = node if node.parent is None else node.parent
+        while isinstance(root, Tag) and root.parent is not None:
+            root = root.parent
+        if isinstance(root, Tag):
+            label = root.find("label", attrs={"for": node_id})
+            if isinstance(label, Tag):
+                text = collapse_ws(label.get_text(" ", strip=True))
+                if text:
+                    return text
+
+    parent = node.parent
+    while isinstance(parent, Tag):
+        if parent.name and parent.name.lower() == "label":
+            text = collapse_ws(parent.get_text(" ", strip=True))
+            if text:
+                return text
+        parent = parent.parent
+
+    aria_label = collapse_ws(str(node.get("aria-label", "")))
+    if aria_label:
+        return aria_label
+
+    labelledby = str(node.get("aria-labelledby", "")).strip()
+    if labelledby:
+        root = node if node.parent is None else node.parent
+        while isinstance(root, Tag) and root.parent is not None:
+            root = root.parent
+        if isinstance(root, Tag):
+            parts = []
+            for ref_id in labelledby.split():
+                label_node = root.find(id=ref_id)
+                if isinstance(label_node, Tag):
+                    text = collapse_ws(label_node.get_text(" ", strip=True))
+                    if text:
+                        parts.append(text)
+            if parts:
+                return collapse_ws(" ".join(parts))
+
+    for attr in ("name", "id"):
+        text = collapse_ws(str(node.get(attr, "")))
+        if text:
+            return text
+
+    return ""
+
+
 def input_to_md(node: Tag) -> str:
     input_type = str(node.get("type", "text")).strip().lower()
     if input_type in {"hidden", "submit", "button", "image", "reset", "file"}:
@@ -86,9 +135,13 @@ def input_to_md(node: Tag) -> str:
 
     if input_type in {"checkbox", "radio"}:
         checked = node.has_attr("checked")
-        marker = "[x]" if checked else "[ ]"
-        label = collapse_ws(str(node.get("aria-label", "") or node.get("name", "") or node.get("id", "")))
+        marker = ("(*)" if checked else "( )") if input_type == "radio" else ("[x]" if checked else "[ ]")
+        label = find_labeled_text(node)
         return f"{marker} {label}".strip()
+
+    if input_type == "password":
+        value = collapse_ws(str(node.get("value", "")))
+        return "[_******_]" if value else "[password]"
 
     value = collapse_ws(str(node.get("value", "")))
     placeholder = collapse_ws(str(node.get("placeholder", "")))
@@ -97,6 +150,15 @@ def input_to_md(node: Tag) -> str:
     if placeholder:
         return f"[{placeholder}]"
     return "[______]"
+
+
+def inline_children_to_md(node: Tag, skip_form_controls: bool = False) -> str:
+    parts = []
+    for child in node.children:
+        if skip_form_controls and isinstance(child, Tag) and child.name and child.name.lower() in {"input", "textarea", "select"}:
+            continue
+        parts.append(inline_to_md(child))
+    return collapse_ws("".join(parts))
 
 
 def inline_to_md(node) -> str:
@@ -147,6 +209,8 @@ def inline_to_md(node) -> str:
     if is_button_like(node):
         text = collapse_ws(content)
         return f"[[{text}]]" if text else ""
+    if name == "label":
+        return inline_children_to_md(node, skip_form_controls=True)
 
     return content
 
@@ -165,12 +229,23 @@ def block_to_md(node, indent: int = 0) -> str:
 
     if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
         level = int(name[1])
-        text = collapse_ws("".join(inline_to_md(child) for child in node.children))
+        text = inline_children_to_md(node)
         return f"{'#' * level} {text}\n\n" if text else ""
 
     if name == "p":
-        text = collapse_ws("".join(inline_to_md(child) for child in node.children))
+        text = inline_children_to_md(node)
         return f"{text}\n\n" if text else ""
+
+    if name == "label":
+        controls = []
+        for child in node.children:
+            if isinstance(child, Tag) and child.name and child.name.lower() in {"input", "textarea", "select"}:
+                rendered = inline_to_md(child)
+                if rendered:
+                    controls.append(rendered)
+        if controls:
+            return "\n".join(controls) + "\n\n"
+        return ""
 
     if name == "blockquote":
         text = "".join(block_to_md(child, indent) for child in node.children).strip()
@@ -195,6 +270,10 @@ def block_to_md(node, indent: int = 0) -> str:
     if name == "pre":
         text = node.get_text("\n").strip("\n")
         return f"```\n{text}\n```\n\n" if text else ""
+
+    if name in {"input", "textarea", "select"}:
+        text = inline_to_md(node)
+        return f"{text}\n\n" if text else ""
 
     if name == "table":
         return table_to_md(node)
