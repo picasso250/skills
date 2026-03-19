@@ -70,6 +70,15 @@ def has_explicit_main_root(soup: BeautifulSoup) -> bool:
     return False
 
 
+def is_button_like(node: Tag) -> bool:
+    name = node.name.lower()
+    if name == "a":
+        return False
+    if name == "button":
+        return True
+    return str(node.get("role", "")).strip().lower() == "button"
+
+
 def inline_to_md(node) -> str:
     if isinstance(node, NavigableString):
         return str(node)
@@ -104,6 +113,9 @@ def inline_to_md(node) -> str:
         if src:
             return f"![{alt}]({src})"
         return alt
+    if is_button_like(node):
+        text = collapse_ws(content)
+        return f"[[{text}]]" if text else ""
 
     return content
 
