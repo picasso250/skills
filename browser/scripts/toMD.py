@@ -79,6 +79,26 @@ def is_button_like(node: Tag) -> bool:
     return str(node.get("role", "")).strip().lower() == "button"
 
 
+def input_to_md(node: Tag) -> str:
+    input_type = str(node.get("type", "text")).strip().lower()
+    if input_type in {"hidden", "submit", "button", "image", "reset", "file"}:
+        return ""
+
+    if input_type in {"checkbox", "radio"}:
+        checked = node.has_attr("checked")
+        marker = "[x]" if checked else "[ ]"
+        label = collapse_ws(str(node.get("aria-label", "") or node.get("name", "") or node.get("id", "")))
+        return f"{marker} {label}".strip()
+
+    value = collapse_ws(str(node.get("value", "")))
+    placeholder = collapse_ws(str(node.get("placeholder", "")))
+    if value:
+        return f"[_{value}_]"
+    if placeholder:
+        return f"[{placeholder}]"
+    return "[______]"
+
+
 def inline_to_md(node) -> str:
     if isinstance(node, NavigableString):
         return str(node)
@@ -113,6 +133,17 @@ def inline_to_md(node) -> str:
         if src:
             return f"![{alt}]({src})"
         return alt
+    if name == "input":
+        return input_to_md(node)
+    if name == "textarea":
+        text = collapse_ws(node.get_text(" ", strip=True) or str(node.get("placeholder", "")))
+        return f"[{text}]" if text else "[______]"
+    if name == "select":
+        selected = node.find("option", selected=True)
+        if selected is None:
+            selected = node.find("option")
+        text = collapse_ws(selected.get_text(" ", strip=True)) if isinstance(selected, Tag) else ""
+        return f"[{text}]" if text else "[______]"
     if is_button_like(node):
         text = collapse_ws(content)
         return f"[[{text}]]" if text else ""
@@ -330,6 +361,58 @@ async def fetch_html(url: str, timeout_seconds: int) -> str:
                     await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
                 except Exception:
                     pass
+
+        try:
+            return await page.evaluate(
+                """
+                () => {
+                  const clone = document.documentElement.cloneNode(true);
+
+                  const syncByIndex = (selector, updater) => {
+                    const liveNodes = Array.from(document.querySelectorAll(selector));
+                    const clonedNodes = Array.from(clone.querySelectorAll(selector));
+                    const count = Math.min(liveNodes.length, clonedNodes.length);
+                    for (let i = 0; i < count; i += 1) {
+                      updater(liveNodes[i], clonedNodes[i]);
+                    }
+                  };
+
+                  syncByIndex('input', (live, copied) => {
+                    const type = (live.getAttribute('type') || '').toLowerCase();
+                    if (type === 'checkbox' || type === 'radio') {
+                      if (live.checked) {
+                        copied.setAttribute('checked', 'checked');
+                      } else {
+                        copied.removeAttribute('checked');
+                      }
+                      return;
+                    }
+                    copied.setAttribute('value', live.value || '');
+                  });
+
+                  syncByIndex('textarea', (live, copied) => {
+                    copied.textContent = live.value || '';
+                  });
+
+                  syncByIndex('select', (live, copied) => {
+                    const liveOptions = Array.from(live.options);
+                    const copiedOptions = Array.from(copied.options);
+                    const optionCount = Math.min(liveOptions.length, copiedOptions.length);
+                    for (let i = 0; i < optionCount; i += 1) {
+                      if (liveOptions[i].selected) {
+                        copiedOptions[i].setAttribute('selected', 'selected');
+                      } else {
+                        copiedOptions[i].removeAttribute('selected');
+                      }
+                    }
+                  });
+
+                  return '<!DOCTYPE html>\\n' + clone.outerHTML;
+                }
+                """
+            )
+        except Exception:
+            pass
 
         client = await page.context.new_cdp_session(page)
         await client.send("DOM.enable")
