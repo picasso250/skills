@@ -6,13 +6,13 @@ import sys
 import tempfile
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 from playwright.async_api import async_playwright
 
 
 BROWSER_ENDPOINT = "http://127.0.0.1:9222"
-MAIN_HINT_RE = re.compile(r"\b(main|content|article|post|entry|markdown)\b", re.IGNORECASE)
 
 
 def collapse_ws(text: str) -> str:
@@ -28,6 +28,28 @@ def visible_text_length(node: Tag) -> int:
     return len(collapse_ws(node.get_text(" ", strip=True)))
 
 
+def has_hidden_attr(node: Tag) -> bool:
+    attrs = getattr(node, "attrs", None)
+    if not isinstance(attrs, dict):
+        return False
+
+    if "hidden" in attrs:
+        return True
+
+    if str(attrs.get("aria-hidden", "")).strip().lower() == "true":
+        return True
+
+    style = str(attrs.get("style", "")).replace(" ", "").lower()
+    return "display:none" in style or "visibility:hidden" in style
+
+
+def is_noise_tag(node: Tag) -> bool:
+    name = getattr(node, "name", None)
+    if not isinstance(name, str):
+        return False
+    return name.lower() in {"nav", "header", "footer", "aside", "iframe"}
+
+
 def find_main_root(soup: BeautifulSoup) -> Tag:
     body = soup.body or soup
 
@@ -36,29 +58,16 @@ def find_main_root(soup: BeautifulSoup) -> Tag:
         if isinstance(candidate, Tag) and visible_text_length(candidate) >= 80:
             return candidate
 
-    candidates: list[tuple[int, Tag]] = []
-    for node in body.find_all(["div", "section", "article"], limit=200):
-        if not isinstance(node, Tag):
-            continue
-
-        attrs = " ".join(
-            str(node.get(key, ""))
-            for key in ("id", "class", "role", "data-testid", "aria-label")
-        )
-        if not MAIN_HINT_RE.search(attrs):
-            continue
-
-        text_len = visible_text_length(node)
-        if text_len < 120:
-            continue
-
-        candidates.append((text_len, node))
-
-    if candidates:
-        candidates.sort(key=lambda item: item[0], reverse=True)
-        return candidates[0][1]
-
     return body
+
+
+def has_explicit_main_root(soup: BeautifulSoup) -> bool:
+    body = soup.body or soup
+    for selector in ("main", "article"):
+        candidate = body.select_one(selector)
+        if isinstance(candidate, Tag) and visible_text_length(candidate) >= 80:
+            return True
+    return False
 
 
 def inline_to_md(node) -> str:
@@ -72,7 +81,7 @@ def inline_to_md(node) -> str:
     content = "".join(inline_to_md(child) for child in node.children)
     content = re.sub(r"[ \t\r\f\v]+", " ", content)
 
-    if name in {"script", "style", "noscript"}:
+    if name in {"script", "style", "noscript"} or is_noise_tag(node) or has_hidden_attr(node):
         return ""
     if name == "br":
         return "  \n"
@@ -108,7 +117,7 @@ def block_to_md(node, indent: int = 0) -> str:
         return ""
 
     name = node.name.lower()
-    if name in {"script", "style", "noscript"}:
+    if name in {"script", "style", "noscript"} or is_noise_tag(node) or has_hidden_attr(node):
         return ""
 
     if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -225,6 +234,16 @@ def html_to_markdown(html: str, only_main: bool = True) -> str:
     for tag in soup.find_all(["script", "style", "noscript"]):
         tag.decompose()
 
+    explicit_main = has_explicit_main_root(soup)
+
+    if not only_main or not explicit_main:
+        for tag in soup.find_all(["nav", "header", "footer", "aside", "iframe"]):
+            tag.decompose()
+
+        for tag in list(soup.find_all(True)):
+            if has_hidden_attr(tag):
+                tag.decompose()
+
     root = find_main_root(soup) if only_main else (soup.body or soup)
     parts = [block_to_md(child) for child in root.children]
     markdown = "".join(parts)
@@ -240,10 +259,25 @@ async def get_ws_url() -> str | None:
         return None
 
 
+def normalize_match_url(raw_url: str) -> str | None:
+    raw_url = (raw_url or "").strip()
+    if not raw_url:
+        return None
+
+    parsed = urlsplit(raw_url)
+    if parsed.scheme not in {"http", "https"}:
+        return None
+
+    path = parsed.path.rstrip("/") or "/"
+    return urlunsplit((parsed.scheme, parsed.netloc.lower(), path, parsed.query, ""))
+
+
 def url_matches(candidate: str, target: str) -> bool:
-    candidate = (candidate or "").rstrip("/")
-    target = target.rstrip("/")
-    return candidate == target or target in candidate
+    candidate_normalized = normalize_match_url(candidate)
+    target_normalized = normalize_match_url(target)
+    if not candidate_normalized or not target_normalized:
+        return False
+    return candidate_normalized == target_normalized
 
 
 async def fetch_html(url: str, timeout_seconds: int) -> str:
