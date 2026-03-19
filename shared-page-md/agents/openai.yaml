@@ -1,0 +1,4 @@
+interface:
+  display_name: "Shared Page Markdown"
+  short_description: "Read a page into Markdown"
+  default_prompt: "Use $shared-page-md to read a URL into Markdown and summarize what the page is showing."
