@@ -1,0 +1,155 @@
+:root {
+  --bg: #f6efe4;
+  --paper: rgba(255, 252, 245, 0.86);
+  --ink: #1a1815;
+  --muted: #675f55;
+  --line: rgba(26, 24, 21, 0.12);
+  --accent: #c54d2f;
+  --accent-2: #0f6d68;
+  --shadow: 0 24px 80px rgba(77, 43, 17, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(197, 77, 47, 0.16), transparent 32%),
+    radial-gradient(circle at 85% 20%, rgba(15, 109, 104, 0.18), transparent 24%),
+    linear-gradient(180deg, #fbf6ef 0%, var(--bg) 100%);
+}
+
+.page {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0 72px;
+}
+
+.hero,
+.install {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.hero {
+  padding: 40px 32px;
+  border-radius: 28px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  font-size: 0.8rem;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 10ch;
+  margin-bottom: 16px;
+  font-size: clamp(3rem, 10vw, 6rem);
+  line-height: 0.92;
+}
+
+.lede,
+.note,
+.card p {
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.lede {
+  max-width: 38rem;
+  margin-bottom: 24px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.button {
+  display: inline-block;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.button.primary {
+  border-color: transparent;
+  background: var(--ink);
+  color: #fff8f0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.card {
+  min-height: 180px;
+  padding: 22px 20px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 242, 0.72);
+  box-shadow: 0 12px 36px rgba(77, 43, 17, 0.08);
+}
+
+.card h2,
+.install h2 {
+  margin-bottom: 10px;
+  font-size: 1.3rem;
+}
+
+.install {
+  padding: 28px 24px;
+  border-radius: 24px;
+}
+
+pre {
+  margin: 0 0 14px;
+  padding: 18px;
+  overflow: auto;
+  border-radius: 16px;
+  background: #201d19;
+  color: #f8f0e3;
+}
+
+code {
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+
+@media (max-width: 640px) {
+  .page {
+    width: min(100% - 20px, 1120px);
+    padding: 20px 0 48px;
+  }
+
+  .hero,
+  .install {
+    padding: 24px 18px;
+  }
+}
