@@ -3,19 +3,20 @@ name: browser-flow-to-cli
 description: Use when the user wants to turn a repeatable browser or website interaction flow into a CLI or automation script.
 ---
 
-# Browser Flow To Cli
+# Browser Flow to CLI
 
 ## Overview
 
 This skill turns a manual browser workflow into a repeatable CLI workflow.
 It is language-agnostic and applies to Python, JavaScript, or any browser automation stack.
+When this skill is activated, do the work directly. Do not answer with examples of how to invoke the skill.
 
 ## Use When
 
 - The user is describing a browser flow as ordered UI steps.
 - The goal is a repeatable local script or CLI, not a one-off manual run.
 - The page likely needs selector discovery, hover states, delayed rendering, or download handling.
-- You should first prove the flow with a small validation implementation before integrating it into the final command or tool.
+- The workflow should be tested in the real target environment before writing the final implementation.
 
 ## Workflow
 
@@ -41,10 +42,16 @@ Timing rule:
 
 ### 2. Build a small validation implementation first
 
-First write a small validation implementation to prove the flow works before integrating it into the final CLI or automation entrypoint:
+First write a small validation implementation in the real target environment:
 - Log major steps.
 - Save screenshots when blocked.
 - Print a few useful DOM facts if selectors or result actions are unclear.
+
+Rules:
+
+- The validation implementation is a temporary experiment, not the final deliverable.
+- Do not stop after producing the validation implementation.
+- Use it to verify selectors, timing, hidden actions, download paths, and real site behavior.
 
 ### 3. Prefer stable selectors in this order
 
@@ -71,14 +78,14 @@ Prefer the official UI download path over scraping preview assets.
 
 ### 5. Only then write the production CLI
 
+After the real-environment validation succeeds, write the final implementation.
+
 Write the final implementation with:
 - Reused helper logic that survived validation.
 - Smaller logs.
 - Clear CLI usage.
 - A deterministic output contract such as `RESULT_IMAGE_PATH:<path>`.
 - Error screenshots only on failure.
-
-Keep the validation implementation. It is the fastest way to repair the automation when the site changes.
 
 ## Implementation Pattern
 
