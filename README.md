@@ -33,7 +33,7 @@ Then replace the installed skill with the updated one.
 
 - `browser`: browser control for interactive web tasks.
 - `browser-flow-to-cli`: turn repeatable browser workflows into CLI scripts.
-- `douyin-publish-video`: publish local videos to Douyin creator tools.
+- `douyin-publish-video`: 将本地视频发布到抖音创作者中心。
 - `everything-file-search`: fast local file search with Everything.
 - `screenshot-webpage`: capture screenshots of web pages or local HTML.
 - `send-email`: send email from the agent.
