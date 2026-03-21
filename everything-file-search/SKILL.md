@@ -12,5 +12,5 @@ This skill allows you to search for files on the local system using the Everythi
 To search for a file, run the following command:
 
 ```bash
-python /path/to/everything-file-search/search.py rg.exe
+python /path/to/everything-file-search/scripts/search.py rg.exe
 ```
