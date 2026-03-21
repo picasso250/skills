@@ -14,8 +14,8 @@ $outboxDir = "gateway/outbox"
 $safeEmail = $EmailAddress -replace "@", "_at_"
 
 # 1. 查找历史消息 (仅限 email)
-$searchPattern = "^email_$($safeEmail)_"
-$files = fd $searchPattern $historyDir | Sort-Object
+$searchPrefix = "email_$($safeEmail)_"
+$files = @(Get-ChildItem -Path $historyDir -File | Where-Object { $_.Name -like "$searchPrefix*" } | Sort-Object Name | ForEach-Object { $_.FullName })
 
 if ($null -eq $files -or $files.Count -eq 0) {
     Write-Host "No email messages found for $EmailAddress."
@@ -60,7 +60,7 @@ if ($currentIndex -ge 0) {
 if ($targetUids.Count -gt 0) {
     $uniqueUids = $targetUids | Select-Object -Unique
     foreach ($tuid in $uniqueUids) {
-        $replies = fd "reply-$tuid" $outboxDir -t f
+        $replies = @(Get-ChildItem -Path $outboxDir -File | Where-Object { $_.Name -like "*reply-$tuid*" } | ForEach-Object { $_.FullName })
         if ($replies) {
             foreach ($r in $replies) {
                 $results += Resolve-Path $r
