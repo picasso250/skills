@@ -502,8 +502,6 @@ async def fetch_html(url: str, timeout_seconds: int) -> str:
         except Exception:
             return await page.content()
     finally:
-        if created_page and page:
-            await page.close()
         if created_context:
             await created_context.close()
         if playwright:
