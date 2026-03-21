@@ -1,6 +1,6 @@
 ---
 name: send-email
-description: 向用户发送电子邮件。
+description: Send email to the user.
 ---
 
 # Skill: send-email
@@ -14,7 +14,7 @@ description: 向用户发送电子邮件。
 ### 使用方法
 
 ```bash
-python .agents/skills/send-email/send_email.py --to alice@example.com --subject "Hello" --ids "1,2" --markdown-body-file gateway/outbox/email-username_at_xx.com-yyyy-mm-ddTHH-MM-SSZ-reply-id-short-name.md
+python scripts/send_email.py --to alice@example.com --subject "Hello" --ids "1,2" --markdown-body-file gateway/outbox/email-username_at_xx.com-yyyy-mm-ddTHH-MM-SSZ-reply-id-short-name.md
 ```
 
 - `--to`: 接收者邮箱。
