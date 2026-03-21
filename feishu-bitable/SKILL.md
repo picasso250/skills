@@ -47,7 +47,8 @@ python .\scripts\update_record.py --app-token bascnxxxxxxxx --table-id tblxxxxxx
 ## Notes
 
 - Prefer environment variables for secrets; do not hardcode credentials in scripts.
-- The scripts search for `.env` upward from the script directory. If `FEISHU_APP_ID` or `FEISHU_APP_SECRET` is still missing, they open a small Tk window with the Feishu Open Platform link and prompt for the two values.
+- The scripts search for `.env` upward from the script directory.
+- If `FEISHU_APP_ID`, `FEISHU_APP_SECRET`, `FEISHU_TENANT_ACCESS_TOKEN`, or related Bitable variables are missing, use the `edit-env-with-tk` skill to let the user enter the missing values locally into `.env`. Do not add Tk prompts inside these scripts.
 - `app_token` is the Bitable app token, not the application `app_id`.
 - Field payloads must match Feishu field schemas. Read field metadata before writing complex types such as people, attachments, or linked records.
 - If the API returns permission errors, verify both Open Platform scopes and the Bitable sharing permissions.

@@ -4,7 +4,6 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-import webbrowser
 from pathlib import Path
 
 
@@ -71,81 +70,6 @@ def require_value(value: str | None, label: str) -> str:
     raise FeishuAPIError(f"missing {label}")
 
 
-def prompt_for_app_credentials() -> tuple[str, str]:
-    open_platform_url = "https://open.feishu.cn/"
-    message = (
-        "Missing FEISHU_APP_ID / FEISHU_APP_SECRET.\n"
-        "Open Feishu Open Platform, enter the App ID and App Secret for your app,\n"
-        "then submit to continue.\n"
-        f"URL: {open_platform_url}"
-    )
-
-    try:
-        import tkinter as tk
-        from tkinter import messagebox
-    except Exception as exc:
-        raise FeishuAPIError(
-            "missing app id/app secret. Open https://open.feishu.cn/ and set FEISHU_APP_ID / FEISHU_APP_SECRET."
-        ) from exc
-
-    result = {"app_id": "", "app_secret": ""}
-
-    root = tk.Tk()
-    root.title("Feishu Credentials")
-    root.resizable(False, False)
-    root.attributes("-topmost", True)
-
-    frame = tk.Frame(root, padx=16, pady=16)
-    frame.pack(fill="both", expand=True)
-
-    tk.Label(frame, text="Missing Feishu app credentials.", anchor="w", justify="left").pack(fill="x")
-    tk.Label(frame, text="Get App ID and App Secret from Feishu Open Platform.", anchor="w", justify="left").pack(fill="x")
-
-    link_var = tk.StringVar(value=open_platform_url)
-    link_entry = tk.Entry(frame, textvariable=link_var, state="readonly", width=48, readonlybackground="white")
-    link_entry.pack(fill="x", pady=(8, 4))
-
-    def open_link() -> None:
-        webbrowser.open(open_platform_url)
-
-    tk.Button(frame, text="Open Feishu Open Platform", command=open_link).pack(anchor="w", pady=(0, 12))
-
-    tk.Label(frame, text="App ID", anchor="w").pack(fill="x")
-    app_id_entry = tk.Entry(frame, width=48)
-    app_id_entry.pack(fill="x", pady=(0, 8))
-
-    tk.Label(frame, text="App Secret", anchor="w").pack(fill="x")
-    app_secret_entry = tk.Entry(frame, show="*", width=48)
-    app_secret_entry.pack(fill="x", pady=(0, 12))
-
-    def submit() -> None:
-        app_id = app_id_entry.get().strip()
-        app_secret = app_secret_entry.get().strip()
-        if not app_id or not app_secret:
-            messagebox.showerror("Missing fields", "Enter both App ID and App Secret.")
-            return
-        result["app_id"] = app_id
-        result["app_secret"] = app_secret
-        root.destroy()
-
-    def cancel() -> None:
-        root.destroy()
-
-    button_row = tk.Frame(frame)
-    button_row.pack(fill="x")
-    tk.Button(button_row, text="Submit", command=submit).pack(side="left")
-    tk.Button(button_row, text="Cancel", command=cancel).pack(side="left", padx=(8, 0))
-
-    app_id_entry.focus_set()
-    root.mainloop()
-
-    if not result["app_id"] or not result["app_secret"]:
-        raise FeishuAPIError(
-            "missing app id/app secret. Open https://open.feishu.cn/ and set FEISHU_APP_ID / FEISHU_APP_SECRET."
-        )
-    return result["app_id"], result["app_secret"]
-
-
 def dump_json(data) -> None:
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -200,9 +124,7 @@ def resolve_tenant_access_token(explicit_token: str | None) -> str:
     if token:
         return token
 
-    app_id = env_or_value(None, "FEISHU_APP_ID")
-    app_secret = env_or_value(None, "FEISHU_APP_SECRET")
-    if not app_id or not app_secret:
-        app_id, app_secret = prompt_for_app_credentials()
+    app_id = require_value(env_or_value(None, "FEISHU_APP_ID"), "FEISHU_APP_ID")
+    app_secret = require_value(env_or_value(None, "FEISHU_APP_SECRET"), "FEISHU_APP_SECRET")
     response = get_tenant_access_token(app_id, app_secret)
     return require_value(response.get("tenant_access_token"), "tenant access token")
