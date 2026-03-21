@@ -1,6 +1,6 @@
 ---
-name: douyin-publish-video
-description: 将本地视频发布到抖音创作者中心的浏览器自动化技能。用户要把视频上传到抖音、批量复用发布流程、把手动网页发布动作改成可重复 CLI、或需要连接已登录浏览器会话填写标题/简介并点击发布时使用。
+name: douyin-publish-video / 抖音发布视频
+description: Browser automation skill for publishing local videos to Douyin Creator Center. 将本地视频发布到抖音创作者中心的浏览器自动化技能。
 ---
 
 # Douyin Publish Video
