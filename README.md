@@ -13,10 +13,10 @@ git clone --depth 1 https://github.com/picasso250/skills.git ~/tmp/picasso-skill
 Copy one skill into your local skills directory:
 
 ```bash
-cp -r ~/tmp/picasso-skills/browser-flow-to-cli ~/.codex/skills/
+cp -r ~/tmp/picasso-skills/browser-flow-to-cli ~/.agents/skills/
 ```
 
-Replace `~/.codex/skills/` with your actual skills directory if different.
+Replace `~/.agents/skills/` with your actual skills directory if different.
 
 ## Update
 
