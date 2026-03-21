@@ -1,0 +1,4 @@
+interface:
+  display_name: "Edit .env With Tk"
+  short_description: "Collect secrets in local Tk dialogs."
+  default_prompt: "Use this skill to update a .env file by prompting the user locally with Tk, so secret values stay out of chat."
