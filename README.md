@@ -18,6 +18,8 @@ cp -r ~/tmp/picasso-skills/browser-flow-to-cli ~/.agents/skills/
 
 Replace `~/.agents/skills/` with your actual skills directory if different.
 
+After copying, check whether the installed skill directory contains a `README.md`. If it does, follow that README to finish installation.
+
 ## Update
 
 Refresh the local clone:
