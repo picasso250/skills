@@ -1,6 +1,6 @@
 # skills
 
-Personal skills.
+Reusable skills for browser automation, file search, screenshots, page extraction, email sending, and Douyin publishing.
 
 ## Install
 
@@ -31,10 +31,10 @@ Then replace the installed skill with the updated one.
 
 ## Skills
 
-- `browser`
-- `browser-flow-to-cli`
-- `douyin-publish-video`
-- `everything-file-search`
-- `screenshot-webpage`
-- `send-email`
-- `shared-page-md`
+- `browser`: browser control for interactive web tasks.
+- `browser-flow-to-cli`: turn repeatable browser workflows into CLI scripts.
+- `douyin-publish-video`: publish local videos to Douyin creator tools.
+- `everything-file-search`: fast local file search with Everything.
+- `screenshot-webpage`: capture screenshots of web pages or local HTML.
+- `send-email`: send email from the agent.
+- `shared-page-md`: read a web page and extract it as Markdown.
