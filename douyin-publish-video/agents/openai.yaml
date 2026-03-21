@@ -1,0 +1,4 @@
+interface:
+  display_name: "Douyin Publish Video"
+  short_description: "Publish local videos to Douyin"
+  default_prompt: "Use $douyin-publish-video to upload a local video to Douyin Creator Center, pause after upload for human review, and only publish it when I explicitly ask."
