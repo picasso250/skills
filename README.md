@@ -1,6 +1,6 @@
 # skills
 
-Personal Codex skills.
+Personal skills.
 
 ## Install
 
