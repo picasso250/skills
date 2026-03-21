@@ -50,8 +50,9 @@ First write a small validation implementation in the real target environment:
 Rules:
 
 - The validation implementation is a temporary experiment, not the final deliverable.
-- Do not stop after producing the validation implementation.
+- Use human-in-the-loop validation. After each validation step or temporary validation script, stop and wait for the user's visual confirmation before continuing.
 - Use it to verify selectors, timing, hidden actions, download paths, and real site behavior.
+- Only after the user confirms the validation result should you continue to the next validation step or produce the final implementation.
 
 ### 3. Prefer stable selectors in this order
 
@@ -78,7 +79,7 @@ Prefer the official UI download path over scraping preview assets.
 
 ### 5. Only then write the production CLI
 
-After the real-environment validation succeeds, write the final implementation.
+After the real-environment validation succeeds and the user confirms the result, write the final implementation.
 
 Write the final implementation with:
 - Reused helper logic that survived validation.
