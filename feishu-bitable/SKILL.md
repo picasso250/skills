@@ -9,7 +9,7 @@ Use the bundled scripts to talk to Feishu Open Platform without rewriting reques
 
 ## Quick Start
 
-Set credentials with environment variables or pass them as CLI flags:
+确保存在相关环境变量 .env 如果不存在，就向用户讨要：
 
 ```powershell
 $env:FEISHU_APP_ID="cli_xxx"
