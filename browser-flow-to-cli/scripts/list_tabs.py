@@ -2,24 +2,20 @@
 
 from __future__ import annotations
 
-"""Run JavaScript in an already-open tab selected by exact URL."""
-
 import argparse
 import json
 import sys
 
 from playwright.sync_api import sync_playwright
 
-from cdp_common import DEFAULT_ENDPOINT, find_page_by_exact_url, get_ws_url
+from cdp_common import DEFAULT_ENDPOINT, collect_tabs, get_ws_url
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="eval_tab_js.py",
-        description="Evaluate JavaScript in an existing browser tab matched by exact URL.",
+        prog="list_tabs.py",
+        description="List existing browser tabs from a Chrome CDP endpoint.",
     )
-    parser.add_argument("--url", required=True, help="Exact page URL to match.")
-    parser.add_argument("--code", default="", help="JavaScript code to evaluate. If omitted, read from stdin.")
     parser.add_argument(
         "--endpoint",
         default=DEFAULT_ENDPOINT,
@@ -28,30 +24,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def read_code(args: argparse.Namespace) -> str:
-    code = args.code
-    if not code:
-        code = sys.stdin.read()
-    code = code.strip()
-    if not code:
-        raise RuntimeError("Missing JavaScript code. Pass --code or pipe code via stdin.")
-    return code
-
-
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    code = read_code(args)
     ws_url = get_ws_url(args.endpoint)
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.connect_over_cdp(ws_url)
         try:
-            page = find_page_by_exact_url(browser, args.url)
-            result = page.evaluate(code)
+            tabs = [tab.to_dict() for tab in collect_tabs(browser)]
         finally:
             browser.close()
 
-    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    print(json.dumps(tabs, ensure_ascii=False, indent=2))
     return 0
 
 
