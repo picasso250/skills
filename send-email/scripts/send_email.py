@@ -2,9 +2,14 @@ import smtplib
 import argparse
 import os
 import sys
+import mimetypes
 import markdown
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024
 
 
 def find_env_path() -> str | None:
@@ -37,12 +42,57 @@ def load_env():
     return env_vars
 
 
-def send_email(subject, body_file, recipient_override, reply_ids_str):
+def parse_attachments(raw_attachments: list[str] | None) -> list[str]:
+    if not raw_attachments:
+        return []
+
+    attachments: list[str] = []
+    for item in raw_attachments:
+        for part in item.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            attachments.append(part)
+    return attachments
+
+
+def attach_files(msg, attachments: list[str]):
+    for attachment_path in attachments:
+        if not os.path.exists(attachment_path):
+            print(f"Error: Attachment file not found at {attachment_path}")
+            sys.exit(1)
+
+        file_size = os.path.getsize(attachment_path)
+        if file_size > MAX_ATTACHMENT_BYTES:
+            print(
+                f"Error: Attachment exceeds 50MB limit: {attachment_path} "
+                f"({file_size} bytes)"
+            )
+            sys.exit(1)
+
+        mime_type, _ = mimetypes.guess_type(attachment_path)
+        if mime_type:
+            maintype, subtype = mime_type.split("/", 1)
+        else:
+            maintype, subtype = "application", "octet-stream"
+
+        with open(attachment_path, "rb") as f:
+            part = MIMEBase(maintype, subtype)
+            part.set_payload(f.read())
+
+        encoders.encode_base64(part)
+        filename = os.path.basename(attachment_path)
+        part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
+        msg.attach(part)
+
+
+def send_email(subject, body_file, recipient_override, reply_ids_str, raw_attachments):
     if not os.path.exists(body_file):
         print(f"Error: Body file not found at {body_file}")
         sys.exit(1)
 
     ids = [id.strip() for id in reply_ids_str.split(',')] if reply_ids_str else []
+    attachments = parse_attachments(raw_attachments)
 
     # Prepend reply IDs to the file as links if multiple IDs are provided
     with open(body_file, 'r', encoding='utf-8') as f:
@@ -66,7 +116,7 @@ def send_email(subject, body_file, recipient_override, reply_ids_str):
 
     print(f"[*] Sending email from {user} to {recipient} (ID: {reply_ids_str})...")
 
-    msg = MIMEMultipart('alternative')
+    msg = MIMEMultipart('mixed')
     msg['Subject'] = subject
     msg['From'] = user
     msg['To'] = recipient
@@ -111,11 +161,14 @@ def send_email(subject, body_file, recipient_override, reply_ids_str):
 
     html_body = f"<html><head>{style}</head><body>{html_content}</body></html>"
 
-    part1 = MIMEText(markdown_body, 'plain')
-    part2 = MIMEText(html_body, 'html')
+    body_part = MIMEMultipart('alternative')
+    part1 = MIMEText(markdown_body, 'plain', 'utf-8')
+    part2 = MIMEText(html_body, 'html', 'utf-8')
 
-    msg.attach(part1)
-    msg.attach(part2)
+    body_part.attach(part1)
+    body_part.attach(part2)
+    msg.attach(body_part)
+    attach_files(msg, attachments)
 
     try:
         with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
@@ -133,6 +186,7 @@ if __name__ == "__main__":
     parser.add_argument("--markdown-body-file", required=True, help="Path to the Markdown file containing the email body")
     parser.add_argument("--ids", help="Reference IDs for the reply (comma separated)")
     parser.add_argument("--to", help="Email recipient override")
+    parser.add_argument("--attachments", nargs="*", help="Attachment paths. Supports multiple args or comma-separated paths.")
 
     args = parser.parse_args()
-    send_email(args.subject, args.markdown_body_file, args.to, args.ids)
+    send_email(args.subject, args.markdown_body_file, args.to, args.ids, args.attachments)
