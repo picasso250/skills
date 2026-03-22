@@ -1,6 +1,6 @@
 # skills
 
-Reusable skills for browser automation, file search, screenshots, page extraction, email sending, and Douyin publishing.
+Reusable Codex skills for browser automation, page extraction, screenshots, local file search, email workflows, env editing, and Feishu/Douyin automation.
 
 ## Install
 
@@ -33,10 +33,20 @@ Then replace the installed skill with the updated one.
 
 ## Skills
 
-- `browser`: browser control for interactive web tasks.
-- `browser-flow-to-cli`: turn repeatable browser workflows into CLI scripts.
-- `douyin-publish-video`: 将本地视频发布到抖音创作者中心。
-- `everything-file-search`: fast local file search with Everything.
-- `screenshot-webpage`: capture screenshots of web pages or local HTML.
-- `send-email`: send email from the agent.
-- `shared-page-md`: read a web page and extract it as Markdown.
+Current skill directories in this repo:
+
+- `browser`: browser control for interactive web tasks via remote debugging / Playwright.
+- `browser-flow-to-cli`: turn repeatable browser or website workflows into CLI automation scripts.
+- `douyin-publish-video`: 将本地视频发布到抖音创作者中心的浏览器自动化技能。
+- `edit-env-with-tk`: update a `.env` file by collecting secret values in local Tk dialogs instead of chat.
+- `everything-file-search`: fast local file search through the Everything HTTP service.
+- `feishu-bitable`: use Feishu Open Platform APIs to list tables/fields/records and update Bitable records.
+- `find-previous-email`: find earlier emails and matching replies to recover message context.
+- `screenshot-webpage`: capture screenshots of web pages or local HTML files.
+- `send-email`: send email with Markdown body and optional attachments.
+- `shared-page-md`: reuse the current browser session and convert a page DOM into Markdown.
+
+## Notes
+
+- `website/` is part of the repo's site assets, not an installable skill directory.
+- Some skills include their own `README.md` or extra setup notes. After copying a skill, read that skill's local documentation before use.
