@@ -3,7 +3,7 @@ import argparse
 import os
 import sys
 import mimetypes
-import markdown
+from cmarkgfm import github_flavored_markdown_to_html
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
@@ -121,7 +121,7 @@ def send_email(subject, body_file, recipient_override, reply_ids_str, raw_attach
     msg['From'] = user
     msg['To'] = recipient
 
-    html_content = markdown.markdown(markdown_body, extensions=['extra', 'nl2br', 'sane_lists'])
+    html_content = github_flavored_markdown_to_html(markdown_body)
 
     style = """
     <style>
@@ -181,7 +181,9 @@ def send_email(subject, body_file, recipient_override, reply_ids_str, raw_attach
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Send an email via 163 SMTP using a Markdown file.")
+    parser = argparse.ArgumentParser(
+        description="Send an email via 163 SMTP using a GitHub Flavored Markdown file."
+    )
     parser.add_argument("--subject", required=True, help="Email subject")
     parser.add_argument("--markdown-body-file", required=True, help="Path to the Markdown file containing the email body")
     parser.add_argument("--ids", help="Reference IDs for the reply (comma separated)")

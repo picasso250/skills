@@ -6,6 +6,7 @@ description: Send email to the user.
 # Skill: send-email
 
 此技能用于向指定用户发送电子邮件。
+正文的 HTML 渲染使用 `cmarkgfm`，也就是 GitHub Flavored Markdown (GFM) 渲染器。
 
 ## 场景：发送电子邮件
 
@@ -26,7 +27,7 @@ python scripts/send_email.py --to alice@example.com --subject "Hello" --markdown
 - `--to`: 接收者邮箱。
 - `--subject`: 邮件主题。
 - `--ids`: (可选) 引用消息的 ID，逗号分隔。
-- `--markdown-body-file`: Markdown 格式的正文文件路径。
+- `--markdown-body-file`: Markdown 格式的正文文件路径，按 GitHub Flavored Markdown 解析。
 - `--attachments`: (可选) 附件路径列表。支持多个参数，或在一个参数里用逗号分隔多个路径。
 
 ## 通用准则
