@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>read-document-files skill | convert PDF and Office files to readable text</title>
+    <meta
+      name="description"
+      content="read-document-files skill for turning PDF, DOCX, XLSX, and PPTX files into readable text, with DOCX image extraction for follow-up analysis."
+    />
+    <link rel="canonical" href="https://skills.io99.xyz/skills/read-document-files/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="read-document-files skill | convert PDF and Office files to readable text" />
+    <meta
+      property="og:description"
+      content="Convert local documents into text and export embedded DOCX images so another agent can inspect them separately."
+    />
+    <meta property="og:url" content="https://skills.io99.xyz/skills/read-document-files/" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"TechArticle","headline":"read-document-files skill","description":"Convert local documents into text and export embedded DOCX images so another agent can inspect them separately.","url":"https://skills.io99.xyz/skills/read-document-files/"}
+    </script>
+  </head>
+  <body>
+    <main class="page detail-page">
+      <section class="hero detail-hero">
+        <a class="back-link" href="/">Back to skills</a>
+        <p class="eyebrow">read-document-files</p>
+        <h1>Turn local documents into readable text.</h1>
+        <p class="lede">
+          Use this skill to convert PDF, DOCX, XLSX, and PPTX files into UTF-8 text output,
+          while exporting embedded DOCX images for separate analysis.
+        </p>
+        <div class="tag-row"><span class="tag">PDF</span><span class="tag">DOCX</span><span class="tag">XLSX</span><span class="tag">PPTX</span></div>
+      </section>
+      <section class="detail-grid">
+        <article class="panel"><h2>What It Does</h2><p class="meta">Runs a reusable Python extractor that writes plain-text output, metadata, and DOCX image assets.</p></article>
+        <article class="panel"><h2>Best For</h2><p class="meta">Reading PDF and Office documents before summarization, search, migration, parsing, or agent handoff.</p></article>
+        <article class="panel"><h2>Install</h2><ol class="install-list"><li><code>git clone --depth 1 https://github.com/picasso250/skills.git ~/tmp/picasso-skills</code></li><li><code>cp -r ~/tmp/picasso-skills/read-document-files ~/.agents/skills/</code></li><li>Run the bundled extractor script on a local Office or PDF file path.</li></ol></article>
+      </section>
+    </main>
+  </body>
+</html>

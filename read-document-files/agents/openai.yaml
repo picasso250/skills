@@ -1,0 +1,4 @@
+interface:
+  display_name: "Read Document Files"
+  short_description: "Convert PDF, DOCX, XLSX, PPTX to text."
+  default_prompt: "Use $read-document-files to extract readable text from a local PDF, DOCX, XLSX, or PPTX file and surface embedded DOCX images for follow-up analysis."

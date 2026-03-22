@@ -26,6 +26,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://skills.io99.xyz/skills/read-document-files/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://skills.io99.xyz/skills/screenshot-webpage/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

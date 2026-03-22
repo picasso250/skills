@@ -1,6 +1,6 @@
 # skills
 
-Reusable Codex skills for browser automation, page extraction, screenshots, local file search, email workflows, env editing, and Feishu/Douyin automation.
+Reusable Codex skills for browser automation, page extraction, screenshots, local file search, document reading, email workflows, env editing, and Feishu/Douyin automation.
 
 ## Install
 
@@ -42,6 +42,7 @@ Current skill directories in this repo:
 - `everything-file-search`: fast local file search through the Everything HTTP service.
 - `feishu-bitable`: use Feishu Open Platform APIs to list tables/fields/records and update Bitable records.
 - `find-previous-email`: find earlier emails and matching replies to recover message context.
+- `read-document-files`: convert PDF, DOCX, XLSX, and PPTX files into readable text and extract DOCX images.
 - `screenshot-webpage`: capture screenshots of web pages or local HTML files.
 - `send-email`: send email with Markdown body and optional attachments.
 - `shared-page-md`: reuse the current browser session and convert a page DOM into Markdown.
