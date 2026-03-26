@@ -26,6 +26,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=30,
         help="How long to wait before reading new user messages. Default: 30.",
     )
+    parser.add_argument(
+        "--poll-seconds",
+        type=int,
+        default=5,
+        help="Polling interval while waiting. Default: 5.",
+    )
     return parser
 
 
@@ -34,6 +40,14 @@ def print_messages(messages: list[dict]) -> None:
         return
     for message in messages:
         print(f"[{message['ts']}] {message['role']}: {message['text']}")
+
+
+def fetch_new_user_messages(session_id: str, last_user_ts: str | None) -> list[dict]:
+    params = {"role": "user"}
+    if last_user_ts:
+        params["since"] = last_user_ts
+    result = api_get(f"/api/sessions/{session_id}/messages", params=params)
+    return result.get("messages", [])
 
 
 def main() -> None:
@@ -53,24 +67,32 @@ def main() -> None:
 
     state = load_session_state(session_id)
     last_user_ts = state.get("last_user_ts")
+    wait_seconds = max(args.wait_seconds, 0)
+    poll_seconds = max(args.poll_seconds, 1)
+    started_at = time.monotonic()
+    deadline = started_at + wait_seconds
 
-    time.sleep(max(args.wait_seconds, 0))
-
-    params = {"role": "user"}
-    if last_user_ts:
-        params["since"] = last_user_ts
-
-    result = api_get(f"/api/sessions/{session_id}/messages", params=params)
-    messages = result.get("messages", [])
+    messages = fetch_new_user_messages(session_id, last_user_ts)
+    while not messages:
+        now = time.monotonic()
+        remaining = deadline - now
+        if remaining <= 0:
+            break
+        time.sleep(min(poll_seconds, remaining))
+        messages = fetch_new_user_messages(session_id, last_user_ts)
 
     if messages:
         print_messages(messages)
         newest_ts = messages[-1]["ts"]
         state["last_user_ts"] = newest_ts
         save_session_state(session_id, state)
+        elapsed = time.monotonic() - started_at
+        if elapsed + 0.01 < wait_seconds:
+            print(f"提前返回，此次耗时 {elapsed:.1f} s，原定 {wait_seconds} s")
         return
 
-    print("No new user messages.")
+    elapsed = time.monotonic() - started_at
+    print(f"No new user messages after {elapsed:.1f} s.")
     if last_user_ts is None:
         session = api_get(f"/api/sessions/{session_id}")
         user_messages = [message for message in session.get("messages", []) if message.get("role") == "user"]
