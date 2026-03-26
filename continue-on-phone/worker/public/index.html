@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Continue on Phone</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --surface: rgba(255, 251, 245, 0.92);
+      --ink: #1f1b16;
+      --muted: #6f6255;
+      --line: rgba(54, 39, 24, 0.12);
+      --accent: #d46a1f;
+      --accent-strong: #9f4610;
+      --user: #fff4d8;
+      --agent: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(212, 106, 31, 0.20), transparent 35%),
+        linear-gradient(180deg, #f6efe6 0%, #efe3d3 100%);
+      color: var(--ink);
+    }
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      min-height: 100vh;
+      padding: 20px 14px 28px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 20px 60px rgba(74, 48, 22, 0.10);
+    }
+    .header {
+      padding: 18px 18px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }
+    .meta {
+      font-size: 13px;
+      color: var(--muted);
+      word-break: break-all;
+    }
+    .messages {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .msg {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.45;
+    }
+    .msg.agent { background: var(--agent); }
+    .msg.user { background: var(--user); }
+    .msg-meta {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .composer {
+      padding: 14px;
+      position: sticky;
+      bottom: 0;
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      font: inherit;
+      resize: vertical;
+      background: rgba(255,255,255,0.9);
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      color: white;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    }
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card header">
+      <h1 class="title">Continue on Phone</h1>
+      <div class="meta">session: <span id="session-id"></span></div>
+      <div class="meta" id="session-status">loading...</div>
+    </div>
+    <div class="card messages" id="messages"></div>
+    <div class="card composer">
+      <textarea id="text" placeholder="在这里输入你发给 agent 的内容"></textarea>
+      <div class="actions">
+        <div class="status" id="send-status">ready</div>
+        <button id="send">Send</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const url = new URL(window.location.href);
+    const pathMatch = window.location.pathname.match(/^\/s\/([a-zA-Z0-9_-]+)$/);
+    const sessionId = url.searchParams.get("session_id") || (pathMatch ? pathMatch[1] : "");
+    const messagesEl = document.getElementById("messages");
+    const sessionIdEl = document.getElementById("session-id");
+    const sessionStatusEl = document.getElementById("session-status");
+    const sendStatusEl = document.getElementById("send-status");
+    const textEl = document.getElementById("text");
+    const sendEl = document.getElementById("send");
+    let lastSignature = "";
+
+    sessionIdEl.textContent = sessionId || "missing";
+
+    function escapeHtml(input) {
+      return input
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function renderMessages(messages) {
+      const nextSignature = JSON.stringify(messages);
+      if (nextSignature === lastSignature) {
+        return;
+      }
+      lastSignature = nextSignature;
+      messagesEl.innerHTML = messages.map((message) => {
+        const ts = new Date(message.ts).toLocaleString("zh-CN", { hour12: false });
+        return `<div class="msg ${message.role}">
+          <div class="msg-meta">${message.role} · ${ts}</div>
+          <div>${escapeHtml(message.text)}</div>
+        </div>`;
+      }).join("");
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    }
+
+    async function refresh() {
+      if (!sessionId) {
+        sessionStatusEl.textContent = "missing session_id";
+        return;
+      }
+      const response = await fetch(`/api/sessions/${sessionId}`, { cache: "no-store" });
+      if (!response.ok) {
+        sessionStatusEl.textContent = "failed to load session";
+        return;
+      }
+      const data = await response.json();
+      sessionStatusEl.textContent = `updated: ${new Date(data.updated_at).toLocaleString("zh-CN", { hour12: false })}`;
+      renderMessages(data.messages || []);
+    }
+
+    async function sendMessage() {
+      const text = textEl.value.trim();
+      if (!sessionId) {
+        sendStatusEl.textContent = "missing session";
+        return;
+      }
+      if (!text) {
+        sendStatusEl.textContent = "empty";
+        return;
+      }
+      sendEl.disabled = true;
+      sendStatusEl.textContent = "sending...";
+      const response = await fetch(`/api/sessions/${sessionId}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role: "user", text }),
+      });
+      if (!response.ok) {
+        sendStatusEl.textContent = "send failed";
+        sendEl.disabled = false;
+        return;
+      }
+      textEl.value = "";
+      sendStatusEl.textContent = "sent";
+      sendEl.disabled = false;
+      await refresh();
+    }
+
+    sendEl.addEventListener("click", () => { void sendMessage(); });
+    textEl.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        void sendMessage();
+      }
+    });
+
+    void refresh();
+    setInterval(() => { void refresh(); }, 2000);
+  </script>
+</body>
+</html>

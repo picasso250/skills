@@ -1,0 +1,15 @@
+name = "continue-on-phone"
+main = "src/worker.js"
+compatibility_date = "2026-03-26"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "96d936d9dfa144f39cf2b174b4921648"
+
+[[routes]]
+pattern = "cop.io99.xyz"
+custom_domain = true
