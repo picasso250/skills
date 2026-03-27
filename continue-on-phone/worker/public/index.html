@@ -4,146 +4,34 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Continue on Phone</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --surface: rgba(255, 251, 245, 0.92);
-      --ink: #1f1b16;
-      --muted: #6f6255;
-      --line: rgba(54, 39, 24, 0.12);
-      --accent: #d46a1f;
-      --accent-strong: #9f4610;
-      --user: #fff4d8;
-      --agent: #ffffff;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      background:
-        radial-gradient(circle at top, rgba(212, 106, 31, 0.20), transparent 35%),
-        linear-gradient(180deg, #f6efe6 0%, #efe3d3 100%);
-      color: var(--ink);
-    }
-    .wrap {
-      max-width: 760px;
-      margin: 0 auto;
-      min-height: 100vh;
-      padding: 20px 14px 28px;
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 20px 60px rgba(74, 48, 22, 0.10);
-    }
-    .header {
-      padding: 18px 18px 12px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      margin-bottom: 12px;
-    }
-    .title {
-      font-size: 24px;
-      font-weight: 700;
-      margin: 0 0 6px;
-    }
-    .meta {
-      font-size: 13px;
-      color: var(--muted);
-      word-break: break-all;
-    }
-    .messages {
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-    .msg {
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 12px 14px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      line-height: 1.45;
-    }
-    .msg.agent { background: var(--agent); }
-    .msg.user { background: var(--user); }
-    .msg-meta {
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 6px;
-    }
-    .composer {
-      padding: 14px;
-      position: sticky;
-      bottom: 0;
-    }
-    textarea {
-      width: 100%;
-      min-height: 120px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 14px;
-      font: inherit;
-      resize: vertical;
-      background: rgba(255,255,255,0.9);
-    }
-    .actions {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 10px;
-    }
-    button {
-      appearance: none;
-      border: 0;
-      border-radius: 999px;
-      padding: 12px 18px;
-      font: inherit;
-      font-weight: 700;
-      color: white;
-      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-    }
-    .status {
-      font-size: 13px;
-      color: var(--muted);
-    }
-  </style>
+  <link rel="stylesheet" href="/app.css">
 </head>
-<body>
-  <div class="wrap">
-    <div class="card header">
-      <h1 class="title">Continue on Phone</h1>
-      <div class="meta">session: <span id="session-id"></span></div>
-      <div class="meta" id="session-status">loading...</div>
+<body class="bg-background text-text">
+  <main class="mx-auto max-w-chat px-4 pb-28 pt-[18px]">
+    <div id="session-meta" class="mb-3 break-all text-center text-[11px] uppercase tracking-[0.08em] text-muted/70">loading...</div>
+    <section id="messages" class="flex flex-col gap-[14px]"></section>
+  </main>
+
+  <div class="fixed inset-x-0 bottom-0 bg-gradient-to-t from-background via-background/95 to-transparent px-[14px] pb-[14px] pt-[10px]">
+    <div class="mx-auto flex w-full max-w-chat items-end gap-[10px] rounded-full bg-surface-strong px-4 py-2 shadow-editorial transition-colors duration-200 focus-within:bg-surface">
+      <textarea id="text" rows="1" placeholder="输入你的消息..." class="min-h-6 max-h-40 w-full flex-1 resize-none border-0 bg-transparent px-0 py-[10px] text-base leading-6 text-text outline-none placeholder:text-muted/60"></textarea>
+      <button id="send" aria-label="Send" class="h-[42px] w-[42px] shrink-0 rounded-full bg-primary text-base font-bold text-white transition-opacity disabled:opacity-55">↑</button>
     </div>
-    <div class="card messages" id="messages"></div>
-    <div class="card composer">
-      <textarea id="text" placeholder="在这里输入你发给 agent 的内容"></textarea>
-      <div class="actions">
-        <div class="status" id="send-status">ready</div>
-        <button id="send">Send</button>
-      </div>
-    </div>
+    <div id="status" class="mx-auto mt-2 max-w-chat text-center text-xs text-muted/80">ready</div>
   </div>
+
   <script>
     const url = new URL(window.location.href);
     const pathMatch = window.location.pathname.match(/^\/s\/([a-zA-Z0-9_-]+)$/);
     const sessionId = url.searchParams.get("session_id") || (pathMatch ? pathMatch[1] : "");
     const messagesEl = document.getElementById("messages");
-    const sessionIdEl = document.getElementById("session-id");
-    const sessionStatusEl = document.getElementById("session-status");
-    const sendStatusEl = document.getElementById("send-status");
+    const sessionMetaEl = document.getElementById("session-meta");
+    const statusEl = document.getElementById("status");
     const textEl = document.getElementById("text");
     const sendEl = document.getElementById("send");
     let lastSignature = "";
 
-    sessionIdEl.textContent = sessionId || "missing";
+    sessionMetaEl.textContent = sessionId ? `session ${sessionId}` : "missing session_id";
 
     function escapeHtml(input) {
       return input
@@ -152,73 +40,100 @@
         .replaceAll(">", "&gt;");
     }
 
+    function formatTs(value) {
+      return new Date(value).toLocaleString("zh-CN", { hour12: false });
+    }
+
+    function autoresize() {
+      textEl.style.height = "auto";
+      textEl.style.height = `${Math.min(textEl.scrollHeight, 160)}px`;
+    }
+
+    function renderMessage(message) {
+      const isUser = message.role === "user";
+      const rowClass = isUser
+        ? "flex w-full justify-end pl-11"
+        : "flex w-full justify-start pr-7";
+      const bubbleClass = isUser
+        ? "max-w-full rounded-2xl rounded-br-sm bg-primary px-4 py-[14px] text-[15px] leading-[1.6] text-primary-text shadow-editorial"
+        : "max-w-full rounded-2xl rounded-bl-sm border border-muted/10 bg-surface px-4 py-[14px] text-[15px] leading-[1.6] text-text shadow-editorial";
+      return `
+        <div class="${rowClass}">
+          <div>
+            <div class="${bubbleClass}">${escapeHtml(message.text)}</div>
+            <div class="mt-1.5 text-[11px] text-muted/80">${message.role} · ${formatTs(message.ts)}</div>
+          </div>
+        </div>
+      `;
+    }
+
     function renderMessages(messages) {
       const nextSignature = JSON.stringify(messages);
       if (nextSignature === lastSignature) {
         return;
       }
       lastSignature = nextSignature;
-      messagesEl.innerHTML = messages.map((message) => {
-        const ts = new Date(message.ts).toLocaleString("zh-CN", { hour12: false });
-        return `<div class="msg ${message.role}">
-          <div class="msg-meta">${message.role} · ${ts}</div>
-          <div>${escapeHtml(message.text)}</div>
-        </div>`;
-      }).join("");
+      messagesEl.innerHTML = messages.map(renderMessage).join("");
       window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     }
 
     async function refresh() {
       if (!sessionId) {
-        sessionStatusEl.textContent = "missing session_id";
+        statusEl.textContent = "missing session_id";
         return;
       }
       const response = await fetch(`/api/sessions/${sessionId}`, { cache: "no-store" });
       if (!response.ok) {
-        sessionStatusEl.textContent = "failed to load session";
+        statusEl.textContent = "failed to load session";
         return;
       }
       const data = await response.json();
-      sessionStatusEl.textContent = `updated: ${new Date(data.updated_at).toLocaleString("zh-CN", { hour12: false })}`;
+      statusEl.textContent = `updated ${formatTs(data.updated_at)}`;
       renderMessages(data.messages || []);
     }
 
     async function sendMessage() {
       const text = textEl.value.trim();
       if (!sessionId) {
-        sendStatusEl.textContent = "missing session";
+        statusEl.textContent = "missing session";
         return;
       }
       if (!text) {
-        sendStatusEl.textContent = "empty";
+        statusEl.textContent = "empty";
         return;
       }
+
       sendEl.disabled = true;
-      sendStatusEl.textContent = "sending...";
+      statusEl.textContent = "sending...";
       const response = await fetch(`/api/sessions/${sessionId}/messages`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ role: "user", text }),
       });
+
       if (!response.ok) {
-        sendStatusEl.textContent = "send failed";
+        statusEl.textContent = "send failed";
         sendEl.disabled = false;
         return;
       }
+
       textEl.value = "";
-      sendStatusEl.textContent = "sent";
+      autoresize();
       sendEl.disabled = false;
       await refresh();
+      statusEl.textContent = "sent";
     }
 
     sendEl.addEventListener("click", () => { void sendMessage(); });
+    textEl.addEventListener("input", autoresize);
     textEl.addEventListener("keydown", (event) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
         void sendMessage();
       }
     });
 
+    autoresize();
     void refresh();
     setInterval(() => { void refresh(); }, 2000);
   </script>
