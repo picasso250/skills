@@ -1,3 +1,5 @@
+const SESSION_TTL_SECONDS = 24 * 60 * 60;
+
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
@@ -33,7 +35,9 @@ async function loadSession(env, sessionId) {
 }
 
 async function saveSession(env, session) {
-  await env.SESSIONS.put(session.session_id, JSON.stringify(session));
+  await env.SESSIONS.put(session.session_id, JSON.stringify(session), {
+    expirationTtl: SESSION_TTL_SECONDS,
+  });
 }
 
 function createSession(sessionId) {
