@@ -1,5 +1,12 @@
 # continue-on-phone
 
+Install:
+
+```powershell
+git clone https://github.com/picasso250/skills $env:TEMP\skills
+Copy-Item -Recurse -Force $env:TEMP\skills\continue-on-phone $HOME\.agents\skills\
+```
+
 Minimal phone handoff stack:
 
 - Cloudflare Worker with KV-backed session storage
