@@ -29,9 +29,10 @@ python .\scripts\interact.py --text "通知：我要实验A方案了" --wait-sec
 python .\scripts\interact.py --text "你觉得选择哪个方案更好？" --wait-seconds 300
 
 # 当你做完了所有任务，则进入等待模式
-python .\scripts\interact.py --text "任务已经完成。以下是任务简报：xxxx" --wait-seconds 3600 # 等待约1个小时
-
-# 当你等待了1个小时，用户仍然没有回复
-python .\scripts\interact.py --text "我已经等了很久了，你还在吗？如果你不回复，我将认为你已离开。" --wait-seconds 36000 # 最后等待10个小时，如果用户仍然没有回复，就认为用户离开了，agent 可以选择结束对话。
+python .\scripts\interact.py --text "任务已经完成。我简要叙述以下结果：xxxx（我将进行一个长的等待）" --wait-seconds 36000 # 等待约10个小时 如果用户仍然没有回复，就认为用户离开了，agent 可以选择结束对话。
 ```
 
+## 要点
+
+- 等待时间设置长一些，反正如果用户有回复的时候会立刻返回
+- 最后一次等待时间一定要10个小时以上，确保用户有足够的时间回复，如果用户没有回复，就认为用户离开了，agent 可以选择结束对话。

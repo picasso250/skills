@@ -1,0 +1,11 @@
+{
+  "name": "continue-on-phone-worker",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss -i ./src/input.css -o ./public/app.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
+
