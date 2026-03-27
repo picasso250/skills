@@ -52,12 +52,13 @@ def load_active_session() -> str | None:
     return data.get("session_id")
 
 
-def save_active_session(session_id: str, session_url: str) -> None:
+def save_active_session(session_id: str, session_url: str, app_token: str) -> None:
     save_json_file(
         ACTIVE_SESSION_PATH,
         {
           "session_id": session_id,
           "session_url": session_url,
+          "app_token": app_token,
         },
     )
 
@@ -67,6 +68,7 @@ def load_session_state(session_id: str) -> dict[str, Any]:
         state_path_for(session_id),
         {
             "session_id": session_id,
+            "app_token": None,
             "last_user_ts": None,
         },
     )
@@ -76,15 +78,48 @@ def save_session_state(session_id: str, data: dict[str, Any]) -> None:
     save_json_file(state_path_for(session_id), data)
 
 
-def api_post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+def build_cookie_header(session_id: str, app_token: str) -> str:
+    return f"cop_session_id={session_id}; cop_session_token={app_token}"
+
+
+def make_request_headers(session_id: str | None = None, app_token: str | None = None) -> dict[str, str]:
+    headers: dict[str, str] = {}
+    if session_id and app_token:
+        headers["Cookie"] = build_cookie_header(session_id, app_token)
+    return headers
+
+
+def api_post(
+    path: str,
+    payload: dict[str, Any],
+    *,
+    session_id: str | None = None,
+    app_token: str | None = None,
+) -> dict[str, Any]:
     base_url = require_base_url()
-    response = requests.post(f"{base_url}{path}", json=payload, timeout=30)
+    response = requests.post(
+        f"{base_url}{path}",
+        json=payload,
+        headers=make_request_headers(session_id, app_token),
+        timeout=30,
+    )
     response.raise_for_status()
     return response.json()
 
 
-def api_get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+def api_get(
+    path: str,
+    params: dict[str, Any] | None = None,
+    *,
+    session_id: str | None = None,
+    app_token: str | None = None,
+) -> dict[str, Any]:
     base_url = require_base_url()
-    response = requests.get(f"{base_url}{path}", params=params, timeout=35)
+    response = requests.get(
+        f"{base_url}{path}",
+        params=params,
+        headers=make_request_headers(session_id, app_token),
+        timeout=35,
+    )
     response.raise_for_status()
     return response.json()

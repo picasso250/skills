@@ -43,10 +43,17 @@ def print_messages(messages: list[dict]) -> None:
 
 
 def fetch_new_user_messages(session_id: str, last_user_ts: str | None) -> list[dict]:
+    state = load_session_state(session_id)
+    app_token = state.get("app_token")
     params = {"role": "user"}
     if last_user_ts:
         params["since"] = last_user_ts
-    result = api_get(f"/api/sessions/{session_id}/messages", params=params)
+    result = api_get(
+        f"/api/sessions/{session_id}/messages",
+        params=params,
+        session_id=session_id,
+        app_token=app_token,
+    )
     return result.get("messages", [])
 
 
@@ -57,15 +64,21 @@ def main() -> None:
     if not session_id:
         raise SystemExit("No active session. Run start_scan.py first or pass --session-id.")
 
+    state = load_session_state(session_id)
+    app_token = state.get("app_token")
+    if not app_token:
+        raise SystemExit(f"Missing app token for session {session_id}. Run start_scan.py again.")
+
     api_post(
         f"/api/sessions/{session_id}/messages",
         {
             "role": "agent",
             "text": args.text,
         },
+        session_id=session_id,
+        app_token=app_token,
     )
 
-    state = load_session_state(session_id)
     last_user_ts = state.get("last_user_ts")
     wait_seconds = max(args.wait_seconds, 0)
     poll_seconds = max(args.poll_seconds, 1)
@@ -94,7 +107,11 @@ def main() -> None:
     elapsed = time.monotonic() - started_at
     print(f"No new user messages after {elapsed:.1f} s.")
     if last_user_ts is None:
-        session = api_get(f"/api/sessions/{session_id}")
+        session = api_get(
+            f"/api/sessions/{session_id}",
+            session_id=session_id,
+            app_token=app_token,
+        )
         user_messages = [message for message in session.get("messages", []) if message.get("role") == "user"]
         if user_messages:
             state["last_user_ts"] = user_messages[-1]["ts"]

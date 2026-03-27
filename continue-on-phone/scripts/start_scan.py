@@ -6,17 +6,12 @@ from pathlib import Path
 
 import qrcode
 
-from common import STATE_DIR, api_post, configure_stdio_utf8, load_active_session, save_active_session
+from common import STATE_DIR, api_post, configure_stdio_utf8, save_active_session, save_session_state
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Create or reuse a continue-on-phone session and print a terminal QR code."
-    )
-    parser.add_argument(
-        "--reuse-active",
-        action="store_true",
-        help="Reuse the last active local session if present.",
     )
     return parser
 
@@ -48,27 +43,30 @@ def save_qr_png(url: str, session_id: str) -> Path:
 
 def main() -> None:
     configure_stdio_utf8()
-    args = build_parser().parse_args()
-    session_id = None
+    build_parser().parse_args()
 
-    if args.reuse_active:
-        session_id = load_active_session()
-
-    payload = {}
-    if session_id:
-        payload["session_id"] = session_id
-
-    result = api_post("/api/sessions", payload)
+    result = api_post("/api/sessions", {})
     session_id = result["session_id"]
     session_url = result["session_url"]
-    save_active_session(session_id, session_url)
+    exchange_url = result["exchange_url"]
+    app_token = result["app_token"]
+    save_active_session(session_id, session_url, app_token)
+    save_session_state(
+        session_id,
+        {
+            "session_id": session_id,
+            "app_token": app_token,
+            "last_user_ts": None,
+        },
+    )
 
     print(f"session_id={session_id}")
     print(f"session_url={session_url}")
-    png_path = save_qr_png(session_url, session_id)
+    print(f"exchange_url={exchange_url}")
+    png_path = save_qr_png(exchange_url, session_id)
     print(f"qr_png={png_path}")
     print()
-    print_qr(session_url)
+    print_qr(exchange_url)
 
 
 if __name__ == "__main__":

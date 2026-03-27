@@ -21,15 +21,19 @@
   </div>
 
   <script>
-    const url = new URL(window.location.href);
     const pathMatch = window.location.pathname.match(/^\/s\/([a-zA-Z0-9_-]+)$/);
-    const sessionId = url.searchParams.get("session_id") || (pathMatch ? pathMatch[1] : "");
+    const sessionId = pathMatch ? pathMatch[1] : "";
     const messagesEl = document.getElementById("messages");
     const sessionMetaEl = document.getElementById("session-meta");
     const statusEl = document.getElementById("status");
     const textEl = document.getElementById("text");
     const sendEl = document.getElementById("send");
     let lastSignature = "";
+    let pollDelayMs = 1000;
+    let pollTimer = null;
+    let refreshInFlight = false;
+    const MIN_POLL_DELAY_MS = 1000;
+    const MAX_POLL_DELAY_MS = 10000;
 
     sessionMetaEl.textContent = sessionId ? `session ${sessionId}` : "missing session_id";
 
@@ -70,26 +74,56 @@
     function renderMessages(messages) {
       const nextSignature = JSON.stringify(messages);
       if (nextSignature === lastSignature) {
-        return;
+        return false;
       }
       lastSignature = nextSignature;
       messagesEl.innerHTML = messages.map(renderMessage).join("");
       window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      return true;
+    }
+
+    function scheduleRefresh(delayMs = pollDelayMs) {
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+      }
+      pollTimer = setTimeout(() => { void refresh(); }, delayMs);
+    }
+
+    function noteRefreshResult(changed) {
+      if (changed) {
+        pollDelayMs = MIN_POLL_DELAY_MS;
+      } else {
+        pollDelayMs = Math.min(pollDelayMs * 2, MAX_POLL_DELAY_MS);
+      }
     }
 
     async function refresh() {
+      if (refreshInFlight) {
+        return;
+      }
+      refreshInFlight = true;
       if (!sessionId) {
         statusEl.textContent = "missing session_id";
+        refreshInFlight = false;
         return;
       }
-      const response = await fetch(`/api/sessions/${sessionId}`, { cache: "no-store" });
-      if (!response.ok) {
-        statusEl.textContent = "failed to load session";
-        return;
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}`, { cache: "no-store" });
+        if (!response.ok) {
+          statusEl.textContent = response.status === 401 || response.status === 403
+            ? "auth required"
+            : "failed to load session";
+          pollDelayMs = MIN_POLL_DELAY_MS;
+          return;
+        }
+        const data = await response.json();
+        statusEl.textContent = `updated ${formatTs(data.updated_at)}`;
+        const changed = renderMessages(data.messages || []);
+        noteRefreshResult(changed);
+      } finally {
+        refreshInFlight = false;
+        scheduleRefresh();
       }
-      const data = await response.json();
-      statusEl.textContent = `updated ${formatTs(data.updated_at)}`;
-      renderMessages(data.messages || []);
     }
 
     async function sendMessage() {
@@ -112,7 +146,9 @@
       });
 
       if (!response.ok) {
-        statusEl.textContent = "send failed";
+        statusEl.textContent = response.status === 401 || response.status === 403
+          ? "auth required"
+          : "send failed";
         sendEl.disabled = false;
         return;
       }
@@ -120,6 +156,7 @@
       textEl.value = "";
       autoresize();
       sendEl.disabled = false;
+      pollDelayMs = MIN_POLL_DELAY_MS;
       await refresh();
       statusEl.textContent = "sent";
     }
@@ -132,10 +169,15 @@
         void sendMessage();
       }
     });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        pollDelayMs = MIN_POLL_DELAY_MS;
+        void refresh();
+      }
+    });
 
     autoresize();
     void refresh();
-    setInterval(() => { void refresh(); }, 2000);
   </script>
 </body>
 </html>
