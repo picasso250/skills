@@ -60,12 +60,14 @@ function assetRequest(request, path, search = "") {
 
 async function handleCreateSession(request, env) {
   const body = await request.json().catch(() => ({}));
-  const sessionId = body.session_id || makeSessionId();
-  let session = await loadSession(env, sessionId);
-  if (!session) {
-    session = createSession(sessionId);
-    await saveSession(env, session);
+  const requestedSessionId = typeof body.session_id === "string" ? body.session_id.trim() : "";
+  if (requestedSessionId) {
+    return json({ ok: false, error: "custom_session_id_disabled" }, 400);
   }
+
+  const sessionId = makeSessionId();
+  const session = createSession(sessionId);
+  await saveSession(env, session);
   const origin = new URL(request.url).origin;
   return json({
     ok: true,

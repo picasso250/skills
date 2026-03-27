@@ -13,7 +13,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Create or reuse a continue-on-phone session and print a terminal QR code."
     )
-    parser.add_argument("--session-id", help="Reuse the given session id instead of creating a random one.")
     parser.add_argument(
         "--reuse-active",
         action="store_true",
@@ -50,9 +49,9 @@ def save_qr_png(url: str, session_id: str) -> Path:
 def main() -> None:
     configure_stdio_utf8()
     args = build_parser().parse_args()
-    session_id = args.session_id
+    session_id = None
 
-    if args.reuse_active and not session_id:
+    if args.reuse_active:
         session_id = load_active_session()
 
     payload = {}
