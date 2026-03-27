@@ -10,7 +10,7 @@ import requests
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-STATE_DIR = SCRIPT_DIR.parent / "state"
+STATE_DIR = Path.home() / ".continue-on-phone"
 STATE_DIR.mkdir(parents=True, exist_ok=True)
 ACTIVE_SESSION_PATH = STATE_DIR / "active_session.json"
 DEFAULT_BASE_URL = "https://cop.io99.xyz"

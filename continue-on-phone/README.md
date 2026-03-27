@@ -15,7 +15,7 @@ Security model:
 - Visiting `/n/{exchange_token}` sets `HttpOnly` auth cookies and redirects to `/s/{session_id}`
 - Web API requests only trust the auth cookies; the URL alone is not enough to read or write messages
 - Session KV records use a 24 hour sliding TTL and are renewed on every write
-- Local scripts save `session_id` and `app_token` under `state/` and send them back as cookies when calling the API
+- Local scripts save `session_id` and `app_token` under `~/.continue-on-phone/` and send them back as cookies when calling the API
 
 Operational notes:
 
