@@ -5,7 +5,8 @@ description: 让你可以操控浏览器（通过  rdp) 来实现各种功能。
 
 # Browser Progressive Proxy
 
-基于“渐进式披露”原则的浏览器自动化控制工具。
+### 原则
+- 首先使用 `scripts\ls-tabs.py` 来看看情况（并使用其中的 ws 进行后续的操作）
 
 ### 1. 启动环境
 ```
@@ -20,6 +21,12 @@ description: 让你可以操控浏览器（通过  rdp) 来实现各种功能。
 ## 已有脚本
 
 ```
+# 列出当前所有标签页及其调试地址
+python scripts\ls-tabs.py
+
+# 在新标签页中打开指定 URL
+python scripts\new-tab.py --url <url>
+
 # 将指定url内容转换成 markdown格式的文本，会复用已有的tab，如果没有就新开一个tab
 skills\browser\scripts\toMD.py --url <url> --timeout 10 --out-file <output.md>
 ```
