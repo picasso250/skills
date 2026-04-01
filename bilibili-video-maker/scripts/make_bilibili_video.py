@@ -46,14 +46,13 @@ def main():
     wav_path = output_dir / f"{args.basename}.wav"
     json_path = output_dir / f"{args.basename}.segments.json"
     
-    # Path to the GPT-SoVITS venv python
+    # Paths to internal scripts
     GPT_VENV_PYTHON = r"C:\Users\MECHREV\github\RVC-Boss\GPT-SoVITS\venv\Scripts\python.exe"
+    ENHANCE_SCRIPT = r"C:\Users\MECHREV\.agents\skills\bilibili-video-maker\scripts\enhance_segments.py"
 
     if not wav_path.exists() or not json_path.exists():
         print(f"Generating WAV and SRT/JSON data via text-to-wavs for: {text_path}")
         try:
-            # Use the venv python directly to avoid re-exec issues
-            # We also set the environment variable to tell the script it's already re-execed
             env = os.environ.copy()
             env["TEXT_TO_WAVS_REEXEC"] = "1"
             subprocess.run([
@@ -65,6 +64,17 @@ def main():
         except subprocess.CalledProcessError as e:
             print(f"Error generating data: {e}")
             sys.exit(1)
+            
+    # 2. Enhance segments (AI cleaning/highlighting)
+    print("Enhancing segments (keywords and wrapping)...")
+    try:
+        subprocess.run([
+            sys.executable, ENHANCE_SCRIPT,
+            "--json-file", str(json_path)
+        ], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error enhancing segments: {e}")
+        sys.exit(1)
             
     if not wav_path.exists():
         print(f"ERROR: Expected WAV file not found at {wav_path}")
