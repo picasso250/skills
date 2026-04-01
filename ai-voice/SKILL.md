@@ -9,7 +9,6 @@ description: Allows the AI to speak using a locally deployed GPT-SoVITS engine w
 
 ## 使用前提
 1.  **必须**在 `C:\Users\MECHREV\GPT-SoVITS` 目录下运行 `python server.py`。
-2.  确保 `my_voice.wav` 已经存在于该目录。
 
 ## 自言自语模式 (Self-Talk Mode)
 
@@ -24,3 +23,7 @@ description: Allows the AI to speak using a locally deployed GPT-SoVITS engine w
 ```powershell
 python C:\Users\MECHREV\.agents\skills\ai-voice\scripts\speak.py "想说的话"
 ```
+
+## 要点
+
+- 编写台词的时候，使用美少女语气，尽量自然地表达情感和想法。
