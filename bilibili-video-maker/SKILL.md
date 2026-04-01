@@ -23,35 +23,51 @@ description: Generate viral Bilibili videos from a topic, including script writi
 
 ## Production Workflow (生产解耦流程)
 
-1.  **语音合成**：调用 `text-to-wavs` 生成原始音频和 `segments.json`。
-2.  **数据清洗**：
+1.  **分段与校验 (Pre-production)**：
+    -   将 `final.md` 的口播内容按意群手工拆分为序列文件（如 `001.txt`, `002.txt` ...）。
+    -   **硬性约束**：每个文件仅允许**纯中文**，且长度严禁超过 **106 个字符**。
+    -   编写/运行校验脚本，确保所有分段均符合上述长度与字符集要求。
+2.  **语音合成与预处理**：
+    -   调用 `text-to-wavs` 批量生成对应的 WAV 音频。
+    -   使用 `ffmpeg` 将合成的音频转码并合并为 `final_audio.mp3`。
+3.  **对齐与生成 (Alignment)**：
+    -   调用 `audio-to-srt` 技能，处理 `final_audio.mp3` 以生成原始 `segments.json` 和 `segments.srt`。
+4.  **数据清洗与排版**：
     -   **版本隔离**：将 `segments.json` 另存为 `segments_final.json`。
-    -   **人工编辑**：在 `text` 字段插入 `\n` 换行和 `*关键词*` 高亮（禁止动时间戳）。
-    -   **去标点**：运行以下指令删除行末冗余标点：
-        ```powershell
-        python ~/.agents/skills/bilibili-video-maker/scripts/clean_punctuation.py --json-file segments_final.json
-        ```
-3.  **最终压制**：调用“窄渲染器”脚本合成视频：
+    -   **手工精修**：在 `text` 字段插入 `\n` 换行、`*关键词*` 高亮，并**修正其中的错别字**（禁止动时间戳）。
+    -   **去标点**：运行 `clean_punctuation.py` 删除行末冗余标点。
+5.  **最终压制**：调用“窄渲染器”脚本合成视频：
     ```powershell
-    python ~/.agents/skills/bilibili-video-maker/scripts/make_bilibili_video.py --wav-file audio.wav --json-file segments_final.json --output-dir . --basename final_video
+    python ~/.agents/skills/bilibili-video-maker/scripts/make_bilibili_video.py --wav-file final_audio.mp3 --json-file segments_final.json --output-dir . --basename final_video
     ```
 
 ## Lessons Learned & Best Practices (经验教训与开发哲学)
 
-### 1. 先做实，后脚本 (Verify First, Automate Last)
-**核心原则**：在技能开发阶段，严禁起手就写大包大揽的自动化脚本。必须分步跑通并“做实”，最后才写脚本。
+### 1. 意群切分与长度约束 (Chunking Strategy)
+**核心原则**：为了确保 `text-to-wavs` 的稳定性，必须进行人工预处理。
+- **纯净性**：输入文本严禁包含英文、数字或特殊符号，仅允许中文。
+- **原子性**：单次合成文本长度控制在 **106 字符**以内（UTF-8 318 字节）。
+- **意群优先**：切分时应保证每一段都是一个完整的语义片段，方便后期 `audio-to-srt` 精准识别。
+
 
 ### 2. 原始数据备份原则 (Data Immutability)
 **原则**：原始生成的 `segments.json` 是“时间真相”，必须保持只读。任何修改必须在派生文件（`segments_final.json`）中进行。
 
 ### 3. 字幕排版优化 (Typography)
-**做法**：短视频字幕应尽量精简。通过脚本去除行末标点（逗号、句号），可以让画面更干净、居中感更强。
+**做法**：短视频字幕应尽量精简。除了通过脚本去除行末标点（逗号、句号）外，**必须在 `segments_final.json` 中修正 ASR 识别出的错别字**，同时完成 `\n` 换行和 `*关键词*` 高亮。这能显著提升视频的专业度。
 
 ### 4. 路径可移植性与隐私
 **做法**：使用 `Path.home()` 获取路径，严禁硬编码用户名。
 
 ### 5. 渲染稳定性
 **做法**：Node.js Canvas 渲染器必须使用 `Math.floor(DURATION_SEC * FPS)` 且容忍浮点数微小误差。
+
+### 6. 禁止使用 generalist 工具 (Anti-Pattern)
+**核心禁令**：在处理 `segments_final.json` 或涉及精确时间对齐的文件时，**严禁使用 `generalist` 子代理**。
+**原因**：`generalist` 倾向于通过“理解意图”来重写整个文件，这往往会导致其根据字数平摊时间轴或错误合并分段，彻底破坏音画同步。所有字幕修正必须通过 `replace` 进行局部精确修改，或由主 Agent 直接操作。
+
+### 7. 预览稳定性 (Preview Stability)
+**做法**：在使用 `ffplay` 预览产物时，**必须将输出重定向到空设备**（例如：`ffplay -i output.mp4 > $null 2>&1`），以免冗余的流信息污染终端空间。
 
 ## Output
 
