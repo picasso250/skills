@@ -15,7 +15,7 @@ from urllib.request import urlopen
 from playwright.sync_api import Error, Page, sync_playwright
 
 DEFAULT_CDP_URL = "http://127.0.0.1:9222"
-DEFAULT_URL = "https://mp.weixin.qq.com/cgi-bin/home?t=home/index&token=564490041&lang=zh_CN"
+HOME_URL_PREFIX = "https://mp.weixin.qq.com/cgi-bin/home?"
 TARGET_TEXT = "内容管理"
 TIMEOUT_SECONDS = 10
 
@@ -38,12 +38,12 @@ def resolve_ws_endpoint(cdp_url: str) -> str:
     return ws_endpoint
 
 
-def find_page_by_url(browser, target_url: str) -> Page:
+def find_home_page(browser) -> Page:
     for context in browser.contexts:
         for page in context.pages:
-            if page.url == target_url:
+            if page.url.startswith(HOME_URL_PREFIX):
                 return page
-    raise RuntimeError(f"No open tab matched url: {target_url}")
+    raise RuntimeError(f"No open tab matched home page prefix: {HOME_URL_PREFIX}")
 
 
 def main() -> None:
@@ -54,7 +54,7 @@ def main() -> None:
         with sync_playwright() as playwright:
             browser = playwright.chromium.connect_over_cdp(ws_endpoint)
             try:
-                page = find_page_by_url(browser, DEFAULT_URL)
+                page = find_home_page(browser)
                 logging.info("Reusing tab: %s", page.url)
                 page.bring_to_front()
                 locator = page.get_by_text(TARGET_TEXT, exact=False).first

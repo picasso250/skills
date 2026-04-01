@@ -13,7 +13,7 @@ from playwright.sync_api import Error, sync_playwright
 from urllib.request import urlopen
 
 DEFAULT_CDP_URL = "http://127.0.0.1:9222"
-DEFAULT_URL = "https://mp.weixin.qq.com/cgi-bin/home?t=home/index&token=564490041&lang=zh_CN"
+DEFAULT_URL = "https://mp.weixin.qq.com/cgi-bin/home?t=home/index&lang=zh_CN"
 
 
 def setup_logging() -> None:
