@@ -1,17 +1,36 @@
 import argparse
 import asyncio
 import base64
+import json
 import os
-
+import sys
+from urllib.request import urlopen
 from playwright.async_api import async_playwright
 
+def get_ws_url(host="localhost", port=9222):
+    """Auto-detect the browser-wide WebSocket URL."""
+    url = f"http://{host}:{port}/json/version"
+    try:
+        with urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            ws_url = data.get("webSocketDebuggerUrl")
+            if ws_url:
+                print(f"Auto-detected browser WS URL: {ws_url}")
+                return ws_url
+    except Exception as e:
+        print(f"Failed to auto-detect browser WS URL from /json/version: {e}")
+    return None
 
 async def get_bilibili_audio(bvid, ws_url=None):
+    if not ws_url:
+        ws_url = get_ws_url()
+
     async with async_playwright() as p:
         if ws_url:
             print(f"Connecting to WS: {ws_url}")
             browser = await p.chromium.connect_over_cdp(ws_url)
         else:
+            print("Fallback connecting to http://localhost:9222")
             browser = await p.chromium.connect_over_cdp("http://localhost:9222")
 
         target_page = None
@@ -62,7 +81,7 @@ async def get_bilibili_audio(bvid, ws_url=None):
 
         print("Extracting audio bytes through the browser session...")
         download_script = """
-        (async (url) => {
+        async (url) => {
             const resp = await fetch(url, {
                 headers: {
                     Referer: 'https://www.bilibili.com/'
@@ -75,7 +94,7 @@ async def get_bilibili_audio(bvid, ws_url=None):
                 binary += String.fromCharCode(bytes[i]);
             }
             return btoa(binary);
-        })(arguments[0])
+        }
         """
         base64_data = await target_page.evaluate(download_script, audio_url)
         audio_data = base64.b64decode(base64_data)
