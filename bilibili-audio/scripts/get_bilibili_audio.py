@@ -71,15 +71,20 @@ async def get_bilibili_audio(bvid, ws_url=None):
             raise RuntimeError(f"Failed to fetch playback info: {play_info.get('message')}")
 
         dash = play_info["data"].get("dash", {})
-        if not dash or not dash.get("audio"):
-            raise RuntimeError("No audio stream found in playback info.")
+        if not dash or not dash.get("audio") or not dash.get("video"):
+            raise RuntimeError("Required audio or video streams not found in playback info.")
 
+        # 获取最佳音频流
         best_audio = max(dash["audio"], key=lambda x: x.get("bandwidth", 0))
         audio_url = best_audio.get("baseUrl") or best_audio.get("base_url")
-        if not audio_url:
-            raise RuntimeError("No downloadable audio URL found.")
+        
+        # 获取最佳视频流
+        best_video = max(dash["video"], key=lambda x: x.get("bandwidth", 0))
+        video_url = best_video.get("baseUrl") or best_video.get("base_url")
 
-        print("Extracting audio bytes through the browser session...")
+        if not audio_url or not video_url:
+            raise RuntimeError("No downloadable URLs found for audio or video.")
+
         download_script = """
         async (url) => {
             const resp = await fetch(url, {
@@ -90,24 +95,49 @@ async def get_bilibili_audio(bvid, ws_url=None):
             const buffer = await resp.arrayBuffer();
             const bytes = new Uint8Array(buffer);
             let binary = '';
-            for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
+            const chunkSize = 16384; 
+            for (let i = 0; i < bytes.byteLength; i += chunkSize) {
+                const chunk = bytes.slice(i, i + chunkSize);
+                binary += String.fromCharCode.apply(null, chunk);
             }
             return btoa(binary);
         }
         """
-        base64_data = await target_page.evaluate(download_script, audio_url)
-        audio_data = base64.b64decode(base64_data)
+
+        print("Downloading audio through the browser session...")
+        audio_b64 = await target_page.evaluate(download_script, audio_url)
+        audio_data = base64.b64decode(audio_b64)
+
+        print("Downloading video through the browser session...")
+        video_b64 = await target_page.evaluate(download_script, video_url)
+        video_data = base64.b64decode(video_b64)
 
         safe_title = "".join([c for c in title if c.isalnum() or c in (" ", ".", "_")]).strip()
-        output_file = f"{safe_title}.m4a"
+        audio_tmp = f"{safe_title}_tmp_audio.m4a"
+        video_tmp = f"{safe_title}_tmp_video.m4s"
+        final_file = f"{safe_title}.mp4"
 
-        with open(output_file, "wb") as f:
+        with open(audio_tmp, "wb") as f:
             f.write(audio_data)
+        with open(video_tmp, "wb") as f:
+            f.write(video_data)
 
-        size = os.path.getsize(output_file)
-        print(f"Saved audio to: {output_file} ({size} bytes)")
-        return output_file
+        print(f"Muxing audio and video into {final_file}...")
+        import subprocess
+        # 使用 ffmpeg 合并音视频流
+        cmd = f'ffmpeg -i "{video_tmp}" -i "{audio_tmp}" -c copy "{final_file}" -y'
+        process = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        
+        if process.returncode == 0:
+            print(f"Successfully saved combined video to: {final_file}")
+            # 清理临时文件
+            os.remove(audio_tmp)
+            os.remove(video_tmp)
+        else:
+            print(f"Ffmpeg muxing failed: {process.stderr}")
+            print(f"Kept temporary files: {audio_tmp}, {video_tmp}")
+
+        return final_file
 
 
 if __name__ == "__main__":
