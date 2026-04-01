@@ -1,6 +1,6 @@
 # skills
 
-Reusable Codex skills for browser automation, page extraction, screenshots, local file search, document reading, email workflows, env editing, and Feishu/Douyin automation.
+Reusable Codex skills for website-to-CLI automation, page extraction, screenshots, local file search, document reading, email workflows, env editing, and Feishu/Douyin automation.
 
 ## Install
 
@@ -35,8 +35,8 @@ Then replace the installed skill with the updated one.
 
 Current skill directories in this repo:
 
-- `browser`: browser control for interactive web tasks via remote debugging / Playwright.
 - `browser-flow-to-cli`: turn repeatable browser or website workflows into CLI automation scripts.
+- `bilibili-audio`: extract audio from an already-open Bilibili video page through the shared browser session.
 - `douyin-publish-video`: 将本地视频发布到抖音创作者中心的浏览器自动化技能。
 - `edit-env-with-tk`: update a `.env` file by collecting secret values in local Tk dialogs instead of chat.
 - `everything-file-search`: fast local file search through the Everything HTTP service.
@@ -46,6 +46,7 @@ Current skill directories in this repo:
 - `screenshot-webpage`: capture screenshots of web pages or local HTML files.
 - `send-email`: send email with Markdown body and optional attachments.
 - `shared-page-md`: reuse the current browser session and convert a page DOM into Markdown.
+- `website-to-cli`: turn a website workflow into a deterministic CLI while reusing the existing browser DevTools session.
 
 ## Notes
 

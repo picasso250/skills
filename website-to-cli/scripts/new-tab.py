@@ -28,6 +28,10 @@ def parse_args() -> argparse.Namespace:
         description="Open a new tab in an existing Chrome/Edge DevTools session."
     )
     parser.add_argument("--cdp-url", default="http://127.0.0.1:9222")
+    parser.add_argument(
+        "--match-url",
+        help="Reuse the browser context that already has a page whose URL contains this string.",
+    )
     parser.add_argument("--url", required=True, help="URL to open in a new tab")
     parser.add_argument("--timeout", type=int, default=30, help="Navigation timeout in seconds")
     return parser.parse_args()
@@ -43,6 +47,26 @@ def resolve_ws_endpoint(cdp_url: str) -> str:
     return ws_endpoint
 
 
+def choose_context(browser, match_url: str | None):
+    if not browser.contexts:
+        raise RuntimeError("No existing browser contexts found in the DevTools session.")
+
+    if match_url:
+        for context in browser.contexts:
+            for page in context.pages:
+                if match_url in page.url:
+                    logging.info("Reusing context matched by page URL: %s", page.url)
+                    return context
+        raise RuntimeError(f"No browser context has a page URL containing: {match_url}")
+
+    if len(browser.contexts) == 1:
+        return browser.contexts[0]
+
+    raise RuntimeError(
+        "Multiple browser contexts are open. Pass --match-url to select the intended context."
+    )
+
+
 def main() -> None:
     setup_logging()
     args = parse_args()
@@ -52,7 +76,7 @@ def main() -> None:
         with sync_playwright() as playwright:
             browser = playwright.chromium.connect_over_cdp(ws_endpoint)
             try:
-                context = browser.contexts[0] if browser.contexts else browser.new_context()
+                context = choose_context(browser, args.match_url)
                 page = context.new_page()
                 page.set_default_timeout(args.timeout * 1000)
                 logging.info("Opening new tab: %s", args.url)

@@ -34,6 +34,7 @@ Guide the user through capturing the manual story, attaching Playwright to Chrom
 - 点击策略默认坚持模拟物理点击，优先使用鼠标坐标点击，而不是 DOM 级别的 `locator.click()`。
 - 物理点击坐标默认取元素中心附近，并带随机偏移：`x = x0 + rand(-width/8, width/8)`，`y = y0 + rand(-height/8, height/8)`。
 - 物理 hover 坐标也默认取元素中心附近，并带随机偏移：`x = x0 + rand(-width/8, width/8)`，`y = y0 + rand(-height/8, height/8)`。
+- 这个技能现在也承担原先独立 `browser` skill 的 CDP 会话附着职责；涉及浏览器会话选择、tab 枚举、复用已打开页面时，统一使用本技能下的基础脚本，不再依赖独立 `browser` skill。
 
 开始任何基于该技能的新自动化之前，先阅读这三个脚本：
 - `scripts/fetch_ws.py`
@@ -43,7 +44,7 @@ Guide the user through capturing the manual story, attaching Playwright to Chrom
 这三个脚本是基础设施：
 - `fetch_ws.py` 用来确认 DevTools 连接信息和 `wsEndpoint`。
 - `ls-tabs.py` 用来确认当前有哪些标签页可复用，以及目标页面是否已经存在。
-- `new-tab.py` 用来在现有 DevTools 会话里稳定打开一个新的目标标签页。
+- `new-tab.py` 用来在现有 DevTools 会话里稳定打开一个新的目标标签页；若存在多个 browser context，应通过 `--match-url` 显式选中目标 context。
 
 ### Step 1: Capture the story and acceptance criteria
 - Read the user’s manual flow and list the pages, buttons, inputs, and outputs they care about.
