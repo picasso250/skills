@@ -1,11 +1,11 @@
 ---
-name: ai-voice
-description: Allows the AI to speak using a locally deployed GPT-SoVITS engine with a cloned voice. Supports a fully autonomous "Self-Talk Mode" for natural audio commentary.
+name: ai-speak
+description: 仅用于实时语音播报与自言自语模式；不用于导出 wav、srt 或视频素材。
 ---
 
-# ai-voice Skill
+# ai-speak Skill
 
-此技能允许 AI 通过本地部署的 GPT-SoVITS 语音合成引擎（克隆了您的声音）直接向您说话。
+此技能用于让 AI 直接开口播报（实时说话），不负责离线音频文件生产。
 
 ## 使用前提
 1.  **必须**在 `C:\Users\MECHREV\GPT-SoVITS` 目录下运行 `python server.py`。
@@ -21,7 +21,7 @@ description: Allows the AI to speak using a locally deployed GPT-SoVITS engine w
 直接运行脚本并附带文本内容：
 
 ```powershell
-python C:\Users\MECHREV\.agents\skills\ai-voice\scripts\speak.py "想说的话"
+python C:\Users\MECHREV\.agents\skills\ai-speak\scripts\speak.py "想说的话"
 ```
 
 ## 要点

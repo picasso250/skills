@@ -1,0 +1,4 @@
+handover.md
+**/__pycache__/
+**/*.pyc
+text-to-wavs/tmp-test/
