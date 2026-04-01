@@ -15,13 +15,13 @@ description: Send email to the user.
 ### 使用方法
 
 ```bash
-python scripts/send_email.py --to alice@example.com --subject "Hello" --ids "1,2" --markdown-body-file gateway/outbox/email-username_at_xx.com-yyyy-mm-ddTHH-MM-SSZ-reply-id-short-name.md
+python send-email/scripts/send_email.py --to alice@example.com --subject "Hello" --ids "1,2" --markdown-body-file gateway/outbox/email-username_at_xx.com-yyyy-mm-ddTHH-MM-SSZ-reply-id-short-name.md
 ```
 
 带附件示例：
 
 ```bash
-python scripts/send_email.py --to alice@example.com --subject "Hello" --markdown-body-file gateway/outbox/email-username_at_xx.com-yyyy-mm-ddTHH-MM-SSZ-reply-id-short-name.md --attachments gateway/media/report.pdf gateway/media/screenshot.png
+python send-email/scripts/send_email.py --to alice@example.com --subject "Hello" --markdown-body-file gateway/outbox/email-username_at_xx.com-yyyy-mm-ddTHH-MM-SSZ-reply-id-short-name.md --attachments gateway/media/report.pdf gateway/media/screenshot.png
 ```
 
 - `--to`: 接收者邮箱。
