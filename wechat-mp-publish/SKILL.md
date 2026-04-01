@@ -52,7 +52,7 @@ description: Browser automation skill for publishing to WeChat Official Accounts
 
 - 不要向前兼容旧目录结构，直接使用 `wechat-post-workbench`。
 - 不要把“如何写提示词、是否继续迭代、迭代几轮”过度脚本化，这些交给 AI 在每次任务里按上下文判断。
-- 不要把“自动识别图片控件并全自动完封面”继续做深；当前技能到“打开编辑器、粘贴正文”已经足够，剩余复杂交互让用户人肉接管。
+- 不要把“自动识别图片控件并全自动完封面”继续做深；当前技能到“打开编辑器、粘贴正文、打开 AI 配图并填入提示词”已经足够，剩余复杂交互让用户人肉接管。
 
 ## Validation Scripts
 
@@ -178,4 +178,4 @@ description: Browser automation skill for publishing to WeChat Official Accounts
 - [scripts/wechat_mp_publish.py](./scripts/wechat_mp_publish.py)
 - 当前先保留最小能力，只合并已经被用户确认过的步骤。
 - 当前主脚本支持 `--title`、`--author`、`--content`、`--input-path`；默认可直接执行固定流程。
-- 当前已合并的流程：打开微信公众号后台首页，等待约 `5 +/- 0.5s`，物理点击“内容管理”，记录点击前后 URL 变化，再物理点击“草稿箱”，再次记录点击前后 URL 变化，物理 hover “新的创作”，再物理点击“写新文章”，记录新打开 tab 的 URL 与 `wsEndpoint`，然后在文章编辑页物理输入标题、作者和正文，并停在编辑页等待用户接管。
+- 当前已合并的流程：打开微信公众号后台首页，等待约 `5 +/- 0.5s`，物理点击“内容管理”，记录点击前后 URL 变化，再物理点击“草稿箱”，再次记录点击前后 URL 变化，物理 hover “新的创作”，再物理点击“写新文章”，记录新打开 tab 的 URL 与 `wsEndpoint`，然后在文章编辑页物理输入标题、作者和正文，物理 hover “拖拽或选择封面”，再物理点击弹层中的 “AI 配图”，输入 AI 配图提示词，并停在弹框等待用户接管。

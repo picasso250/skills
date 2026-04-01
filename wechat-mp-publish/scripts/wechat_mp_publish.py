@@ -404,7 +404,7 @@ def hover_cover_and_click_ai_image(page: Page) -> None:
     print(f"Actual click: x={click_x:.2f}, y={click_y:.2f}")
 
 
-def input_ai_cover_prompt_and_start(page: Page, prompt_text: str) -> None:
+def input_ai_cover_prompt(page: Page, prompt_text: str) -> None:
     prompt_locator = page.locator(AI_PROMPT_SELECTOR).first
     prompt_locator.wait_for(state="visible", timeout=10 * 1000)
     prompt_box = prompt_locator.bounding_box()
@@ -428,26 +428,6 @@ def input_ai_cover_prompt_and_start(page: Page, prompt_text: str) -> None:
     print(f"Actual click: x={prompt_click_x:.2f}, y={prompt_click_y:.2f}")
     print(f"Prompt before: {before_value!r}")
     print(f"Prompt after: {after_value!r}")
-
-    start_locator = page.locator(AI_START_BUTTON_SELECTOR).filter(has_text="开始创作").first
-    start_locator.wait_for(state="visible", timeout=10 * 1000)
-    start_box = start_locator.bounding_box()
-    if not start_box:
-        raise RuntimeError(f"AI start button was found but had no bounding box: {AI_START_BUTTON_SELECTOR}")
-    start_center_x, start_center_y, start_click_x, start_click_y = random_point_in_center_band(start_box)
-    wait_with_jitter(page, 1.0, "pre-click pause")
-    page.mouse.click(start_click_x, start_click_y)
-    page.wait_for_timeout(1500)
-    print(f"AI start selector: {AI_START_BUTTON_SELECTOR}")
-    print(
-        f"Start box: x={start_box['x']:.2f}, y={start_box['y']:.2f}, width={start_box['width']:.2f}, height={start_box['height']:.2f}"
-    )
-    print(f"Click center: x={start_center_x:.2f}, y={start_center_y:.2f}")
-    print(f"Actual click: x={start_click_x:.2f}, y={start_click_y:.2f}")
-
-    # AI cover generation is slow and unstable. Wait 40s here so we do not forget.
-    logging.info("Waiting 40.00s for AI cover generation to finish")
-    page.wait_for_timeout(40 * 1000)
 
 
 def click_text_and_capture_new_page(
@@ -576,7 +556,9 @@ def main() -> None:
                     type_into_field(page, TITLE_SELECTOR, title_text)
                     type_into_field(page, AUTHOR_SELECTOR, author_text)
                     type_into_body(page, BODY_SELECTOR, body_text)
-                    logging.info("Content has been inserted. Leaving the editor tab open for manual takeover.")
+                    hover_cover_and_click_ai_image(page)
+                    input_ai_cover_prompt(page, DEFAULT_AI_COVER_PROMPT)
+                    logging.info("Content and AI cover prompt have been inserted. Leaving the editor tab open for manual takeover.")
                     print("Manual takeover point reached.")
                     print(f"Editor tab title: {page.title()}")
                     print(f"Editor tab url: {page.url}")
