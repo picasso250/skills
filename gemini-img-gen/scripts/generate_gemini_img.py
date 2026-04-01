@@ -1,12 +1,50 @@
+import argparse
 import asyncio
 import os
 import random
 import subprocess
-import sys
+import tempfile
+import time
 from pathlib import Path
 from playwright.async_api import async_playwright
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+LOCK_PATH = Path(tempfile.gettempdir()) / "gemini_img_gen_clipboard.lock"
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Generate an image in Gemini and save the copied result from the clipboard."
+    )
+    parser.add_argument("prompt", help="Prompt to send to Gemini image generation")
+    parser.add_argument("output_path", help="Target path for the saved image")
+    return parser.parse_args()
+
+
+class FileLock:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.fd = None
+
+    def __enter__(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        while True:
+            try:
+                self.fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                os.write(self.fd, f"{os.getpid()}\n".encode("ascii"))
+                break
+            except FileExistsError:
+                time.sleep(0.5)
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if self.fd is not None:
+            os.close(self.fd)
+            self.fd = None
+        try:
+            self.path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 async def random_wait(base_seconds):
@@ -147,26 +185,30 @@ async def run(prompt, output_path):
 
             try:
                 download_btn = await wait_for_full_size_download_button(page)
-                await random_wait(1)
-                await move_mouse_to_locator(page, download_btn)
-                await page.wait_for_timeout(1200)
+                print(f"Waiting for clipboard lock: {LOCK_PATH}")
+                with FileLock(LOCK_PATH):
+                    print(f"Clipboard lock acquired: {LOCK_PATH}")
+                    await page.bring_to_front()
+                    await random_wait(1)
+                    await move_mouse_to_locator(page, download_btn)
+                    await page.wait_for_timeout(1200)
 
-                copy_btn = page.locator(copy_btn_selector).last
-                await copy_btn.wait_for(state="visible", timeout=10000)
-                await click_locator_physically(page, copy_btn)
+                    copy_btn = page.locator(copy_btn_selector).last
+                    await copy_btn.wait_for(state="visible", timeout=10000)
+                    await click_locator_physically(page, copy_btn)
 
-                last_error = None
-                final_path = None
-                for _ in range(5):
-                    await page.wait_for_timeout(1000)
-                    try:
-                        final_path = save_clipboard_image(save_path)
-                        break
-                    except Exception as clipboard_error:
-                        last_error = clipboard_error
+                    last_error = None
+                    final_path = None
+                    for _ in range(5):
+                        await page.wait_for_timeout(1000)
+                        try:
+                            final_path = save_clipboard_image(save_path)
+                            break
+                        except Exception as clipboard_error:
+                            last_error = clipboard_error
 
-                if final_path is None:
-                    raise last_error
+                    if final_path is None:
+                        raise last_error
 
                 print(f"RESULT_IMAGE_PATH:{final_path}")
             except Exception as e:
@@ -183,9 +225,5 @@ async def run(prompt, output_path):
             await page.close()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python generate_gemini_img.py <prompt> <output_path>")
-    else:
-        p = sys.argv[1]
-        out = sys.argv[2]
-        asyncio.run(run(p, out))
+    args = parse_args()
+    asyncio.run(run(args.prompt, args.output_path))
