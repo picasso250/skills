@@ -16,30 +16,35 @@ description: Generate viral Bilibili videos from a topic, including script writi
 ## Production Workflow (生产解耦流程)
 
 1.  **语音合成**：调用 `text-to-wavs` 生成原始音频和 `segments.json`。
-2.  **数据清洗**：手工处理 `segments_final.json`（禁止动时间戳，仅改 text 内容）。
-3.  **最终压制**：调用“窄渲染器”脚本合成视频。
+2.  **数据清洗**：
+    -   **备份**：将 `segments.json` 另存为 `segments_final.json`。
+    -   **编辑**：在 `text` 字段插入 `\n` 换行和 `*关键词*` 高亮（禁止动时间戳）。
+    -   **去标点**：运行以下指令删除行末冗余标点：
+        ```powershell
+        python ~/.agents/skills/bilibili-video-maker/scripts/clean_punctuation.py --json-file segments_final.json
+        ```
+3.  **最终压制**：调用“窄渲染器”脚本合成视频：
+    ```powershell
+    python ~/.agents/skills/bilibili-video-maker/scripts/make_bilibili_video.py --wav-file audio.wav --json-file segments_final.json --output-dir . --basename final_video
+    ```
 
 ## Lessons Learned & Best Practices (经验教训与开发哲学)
 
 ### 1. 先做实，后脚本 (Verify First, Automate Last)
-**核心原则**：在技能开发阶段，**严禁起手就写大包大揽、野心勃勃的自动化脚本**。
-**教训**：全能脚本会制造“一切正常”的幻觉，一旦出现编码乱码、音画不同步等底层问题，极难排查。
-**做法**：必须先分步骤手动跑通（Step-by-Step）。只有当每一阶段的输入输出都 100% 确定“做实”了，最后才写脚本来封装流程以提升效率。
+**核心原则**：在技能开发阶段，严禁起手就写大包大揽的自动化脚本。必须分步跑通并“做实”，最后才写脚本。
 
 ### 2. 原始数据备份原则 (Data Immutability)
-**原则**：原始生成的 `segments.json` 是唯一的“时间真相”，必须保持只读。派生文件（如 `segments_final.json`）用于内容增强。
+**原则**：原始生成的 `segments.json` 是“时间真相”，必须只读。任何修改必须在派生文件（`segments_final.json`）中进行。
 
-### 3. 脚本职能收缩 (Narrow Script Responsibility)
-**原则**：生产脚本应尽量“窄”，只负责单一职能（如：仅渲染，不合成）。这样可以彻底消除因多轮迭代导致的 stale data（陈旧数据）残留问题。
+### 3. 字幕排版优化 (Typography)
+**做法**：短视频字幕应尽量精简。通过脚本去除行末标点（逗号、句号），可以让画面更干净、居中感更强。
 
 ### 4. 路径可移植性与隐私
-**做法**：使用 `Path.home()` 获取路径，严禁硬编码用户名，保护隐私并确保脚本在不同机器可运行。
+**做法**：使用 `Path.home()` 获取路径，严禁硬编码。
 
 ### 5. 渲染稳定性
 **做法**：Node.js Canvas 渲染器必须使用 `Math.floor(DURATION_SEC * FPS)` 且容忍浮点数微小误差。
 
-## Usage (最终渲染)
+## Output
 
-```powershell
-python ~/.agents/skills/bilibili-video-maker/scripts/make_bilibili_video.py --wav-file audio.wav --json-file segments_final.json --output-dir . --basename final_video
-```
+-   `*_animated_final.mp4`: 最终成品视频。
