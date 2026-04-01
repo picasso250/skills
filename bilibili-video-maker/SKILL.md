@@ -25,8 +25,9 @@ description: Generate viral Bilibili videos from a topic, including script writi
 
 1.  **分段与校验 (Pre-production)**：
     -   将 `final.md` 的口播内容按意群手工拆分为序列文件（如 `001.txt`, `002.txt` ...）。
-    -   **硬性约束**：每个文件仅允许**纯中文**，且长度严禁超过 **106 个字符**。
-    -   编写/运行校验脚本，确保所有分段均符合上述长度与字符集要求。
+    -   **约束条件**：文本尽量纯中文，但允许少量英文缩写和单词。
+    -   **长度限制**：每个分段建议为 100 个中文字（含标点），**严禁超过 200 个中文字**。
+    -   编写/运行校验脚本，确保所有分段均符合上述要求。
 2.  **语音合成与预处理**：
     -   调用 `text-to-wavs` 批量生成对应的 WAV 音频。
     -   使用 `ffmpeg` 将合成的音频转码并合并为 `final_audio.mp3`。
@@ -54,7 +55,11 @@ description: Generate viral Bilibili videos from a topic, including script writi
 **原则**：原始生成的 `segments.json` 是“时间真相”，必须保持只读。任何修改必须在派生文件（`segments_final.json`）中进行。
 
 ### 3. 字幕排版优化 (Typography)
-**做法**：短视频字幕应尽量精简。除了通过脚本去除行末标点（逗号、句号）外，**必须在 `segments_final.json` 中修正 ASR 识别出的错别字**，同时完成 `\n` 换行和 `*关键词*` 高亮。这能显著提升视频的专业度。
+**做法**：短视频字幕应尽量精简。
+- **人工语义换行 (Anti-Programmatic Wrap)**：**严禁使用任何脚本或程序进行批量自动换行**。必须由 Agent 根据口播语感和语义逻辑，在 `segments_final.json` 中手动插入 `\n`。
+- **对齐原则**：换行应发生在词组或意群之间（如“中国摩托车/行业的一个/神话诞生了”），禁止在单词或固定词组中间截断（如禁止“中\n国”）。
+- **修字与高亮**：必须在 `segments_final.json` 中修正 ASR 识别出的所有错别字，并完成 `*关键词*` 高亮。
+- **去标点**：运行 `clean_punctuation.py` 删除行末冗余标点（逗号、句号）。
 
 ### 4. 路径可移植性与隐私
 **做法**：使用 `Path.home()` 获取路径，严禁硬编码用户名。
