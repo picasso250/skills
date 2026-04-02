@@ -82,7 +82,15 @@ def attach_files(msg, attachments: list[str]):
 
         encoders.encode_base64(part)
         filename = os.path.basename(attachment_path)
-        part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
+        # Use RFC 2231 encoding for attachment filenames so non-ASCII names
+        # like Chinese .docx files are preserved by mail clients instead of
+        # degrading to generic .bin attachments.
+        part.set_param("name", ("utf-8", "", filename), header="Content-Type")
+        part.add_header(
+            "Content-Disposition",
+            "attachment",
+            filename=("utf-8", "", filename),
+        )
         msg.attach(part)
 
 
