@@ -1,16 +1,16 @@
 ---
 name: ollama-ocr
-description: 本地 OCR 提取工具。使用 Ollama 运行多模态模型（默认 minicpm-v）来提取图片文字、识别表格或解析文档结构。支持通过命令行脚本批量或单张处理。
+description: 本地 OCR 提取工具。使用 Ollama 运行多模态模型（默认 qwen2.5vl:7b）来提取图片文字、识别表格或解析文档结构。支持通过命令行脚本批量或单张处理。
 ---
 
 # Ollama OCR Skill
 
 ## Description
-利用本地安装的 Ollama 运行多模态视觉模型（默认 `minicpm-v`）来提取图片内容。此技能特别适用于本地化、高隐私、无联网要求的 OCR 任务。
+利用本地安装的 Ollama 运行多模态视觉模型（默认 `qwen2.5vl:7b`）来提取图片内容。此技能特别适用于本地化、高隐私、无联网要求的 OCR 任务。
 
 ## Available Resources
 - Ollama CLI (`ollama`)
-- 模型：`minicpm-v` (已验证可运行), `qwen2.5vl:3b` (备选)
+- 模型：`qwen2.5vl:7b` (默认), `minicpm-v` (更快但 OCR 稍弱的备选)
 - 脚本：`scripts/ocr_tool.py` (支持 `--file` 参数)
 
 ## Instructions
@@ -22,7 +22,7 @@ description: 本地 OCR 提取工具。使用 Ollama 运行多模态模型（默
 
 ### 2. 直接命令行调用
 如果你想快速执行，可以直接使用：
-- 命令：`ollama run minicpm-v "请提取这张图片中的所有文字并保持原有格式：[IMAGE_PATH]"`
+- 命令：`ollama run qwen2.5vl:7b "请提取这张图片中的所有文字并保持原有格式：[IMAGE_PATH]"`
 
 ### 3. 表格与排版识别
 如果你需要提取表格或 Markdown 格式：

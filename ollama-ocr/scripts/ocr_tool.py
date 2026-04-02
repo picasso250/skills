@@ -4,10 +4,10 @@ import os
 import sys
 
 def main():
-    parser = argparse.ArgumentParser(description='Ollama OCR Tool using MiniCPM-V')
+    parser = argparse.ArgumentParser(description='Ollama OCR Tool using qwen2.5vl:7b')
     parser.add_argument('--file', type=str, required=True, help='Path to the image file')
     parser.add_argument('--prompt', type=str, default='请提取这张图片中的所有文字：', help='Custom prompt for OCR')
-    parser.add_argument('--model', type=str, default='minicpm-v', help='Ollama model to use')
+    parser.add_argument('--model', type=str, default='qwen2.5vl:7b', help='Ollama model to use')
 
     args = parser.parse_args()
 
