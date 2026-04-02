@@ -12,6 +12,7 @@ import json
 import logging
 import random
 import sys
+import tempfile
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -20,7 +21,7 @@ from playwright.sync_api import Error, Page, sync_playwright
 DEFAULT_CDP_URL = "http://127.0.0.1:9222"
 EDITOR_URL_KEYWORD = "media/appmsg_edit"
 BODY_SELECTOR = "div.ProseMirror"
-DEFAULT_INPUT_PATH = r"C:\Users\MECHREV\AppData\Local\Temp\md-to-txt-40tycc39.txt"
+DEFAULT_INPUT_PATH = str(Path(tempfile.gettempdir()) / "md-to-txt-40tycc39.txt")
 GMEM_MOVEABLE = 0x0002
 CF_UNICODETEXT = 13
 

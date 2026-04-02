@@ -8,8 +8,7 @@ import tempfile
 import wave
 from pathlib import Path
 
-
-DEFAULT_GPT_SOVITS_ROOT = Path(r"C:\Users\MECHREV\github\RVC-Boss\GPT-SoVITS")
+DEFAULT_GPT_SOVITS_ROOT = Path.home() / "github" / "RVC-Boss" / "GPT-SoVITS"
 MODEL_NAME = "刘亦菲"
 GPT_PATH = "GPT_weights_v2/liuyifei-e15.ckpt"
 SOVITS_PATH = "SoVITS_weights_v2/liuyifei_SoVITS.pth"

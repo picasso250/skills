@@ -8,7 +8,7 @@ description: 仅用于实时语音播报与自言自语模式；不用于导出 
 此技能用于让 AI 直接开口播报（实时说话），不负责离线音频文件生产。
 
 ## 使用前提
-1.  **必须**在 `C:\Users\MECHREV\GPT-SoVITS` 目录下运行 `python server.py`。
+1.  **必须**在 `$HOME\GPT-SoVITS` 目录下运行 `python server.py`。
 
 ## 自言自语模式 (Self-Talk Mode)
 
@@ -21,7 +21,7 @@ description: 仅用于实时语音播报与自言自语模式；不用于导出 
 直接运行脚本并附带文本内容：
 
 ```powershell
-python C:\Users\MECHREV\.agents\skills\ai-speak\scripts\speak.py "想说的话"
+python $HOME\.agents\skills\ai-speak\scripts\speak.py "想说的话"
 ```
 
 ## 要点

@@ -17,7 +17,7 @@ description: 用户提供 wav/mp3 音频后，生成声学对齐的 srt/json 字
 
 ## Runtime
 
-- GPT-SoVITS 根目录参考：`C:\Users\MECHREV\github\RVC-Boss\GPT-SoVITS`
+- GPT-SoVITS 根目录参考：`$HOME\github\RVC-Boss\GPT-SoVITS`
 - 依赖 GPT-SoVITS `venv` 内已安装的 `funasr`。
 - 如输入不是 wav，脚本会调用 `ffmpeg` 转成临时 wav 再做识别。
 

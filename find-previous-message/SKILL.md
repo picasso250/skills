@@ -27,7 +27,7 @@ pwsh .agents/skills/find-previous-message/find_prev.ps1 <message_file> [Count]
 ## 示例
 
 ```powershell
-pwsh .agents/skills/find-previous-message/find_prev.ps1 C:\Users\MECHREV\my-claw\gateway\processing\feishu_xxx.txt 5
+pwsh .agents/skills/find-previous-message/find_prev.ps1 $HOME\my-claw\gateway\processing\feishu_xxx.txt 5
 pwsh .agents/skills/find-previous-message/find_prev.ps1 gateway/processing/email_xxx.txt 8
 ```
 

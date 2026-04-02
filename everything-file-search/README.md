@@ -83,7 +83,7 @@ python .\scripts\search.py "README.md"
 脚本会输出匹配文件的完整路径，例如：
 
 ```text
-C:\Users\MECHREV\AppData\Local\Programs\SomeApp\rg.exe
+$HOME\AppData\Local\Programs\SomeApp\rg.exe
 ```
 
 ## 工作原理

@@ -14,6 +14,7 @@ import json
 import logging
 import random
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -45,7 +46,7 @@ UNSET_TEXT = "未声明"
 DECLARE_AUTHOR_SELECTOR = "div#js_original_edit_box input.frm_input.js_counter.js_author"
 DECLARE_CHECKBOX_SELECTOR = "div.claim__original-dialog.original_dialog i.weui-desktop-icon-checkbox"
 DECLARE_CONFIRM_SELECTOR = "div.claim__original-dialog.original_dialog button.weui-desktop-btn.weui-desktop-btn_primary"
-DEFAULT_INPUT_PATH = r"C:\Users\MECHREV\AppData\Local\Temp\md-to-txt-40tycc39.txt"
+DEFAULT_INPUT_PATH = str(Path(tempfile.gettempdir()) / "md-to-txt-40tycc39.txt")
 GMEM_MOVEABLE = 0x0002
 CF_UNICODETEXT = 13
 DEFAULT_AI_COVER_PROMPT = "科技感十足的未来 AI 指挥官在控制台前工作，明亮、简洁、适合作为公众号封面。"

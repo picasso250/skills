@@ -7,11 +7,17 @@ import sys
 import tempfile
 from pathlib import Path
 
-
-DEFAULT_GPT_SOVITS_ROOT = Path(r"C:\Users\MECHREV\github\RVC-Boss\GPT-SoVITS")
+HOME_DIR = Path.home()
+DEFAULT_GPT_SOVITS_ROOT = HOME_DIR / "github" / "RVC-Boss" / "GPT-SoVITS"
 REEXEC_ENV_KEY = "AUDIO_TO_SRT_REEXEC"
 FUNASR_ASR_MODEL_DIR = Path(
-    r"C:\Users\MECHREV\.cache\modelscope\hub\models\iic\speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch"
+    HOME_DIR
+    / ".cache"
+    / "modelscope"
+    / "hub"
+    / "models"
+    / "iic"
+    / "speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch"
 )
 FUNASR_ASR_MODEL_ID = "iic/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch"
 FUNASR_VAD_DIR = "tools/asr/models/speech_fsmn_vad_zh-cn-16k-common-pytorch"

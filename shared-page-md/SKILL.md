@@ -21,7 +21,7 @@ description: 读取用户提供的网页 URL，并通过复用当前浏览器会
 
 1. 接收用户提供的 URL。
 2. 默认假设该 URL 已经在用户浏览器中打开；目标是复用用户当前会话里的已有标签页，而不是新开页面。
-3. 在 `C:\Users\MECHREV\.agents\skills` 目录下运行：
+3. 在 `$HOME\.agents\skills` 目录下运行：
 
 ```powershell
 python .\browser\scripts\toMD.py --url <url>
