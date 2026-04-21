@@ -13,6 +13,7 @@ from playwright.async_api import async_playwright
 
 
 BROWSER_ENDPOINT = "http://127.0.0.1:9222"
+INLINE_MAIN_MD_MAX_BYTES = 4 * 1024
 
 
 def collapse_ws(text: str) -> str:
@@ -402,7 +403,7 @@ def url_matches(candidate: str, target: str) -> bool:
     return candidate_normalized == target_normalized
 
 
-async def fetch_html(url: str, timeout_seconds: int) -> str:
+async def fetch_html(url: str, timeout_seconds: int, refresh: bool = False) -> str:
     timeout_ms = timeout_seconds * 1000
     playwright = await async_playwright().start()
     browser = None
@@ -434,10 +435,13 @@ async def fetch_html(url: str, timeout_seconds: int) -> str:
             if page.url == "about:blank":
                 await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
             else:
-                try:
-                    await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
-                except Exception:
-                    pass
+                if refresh:
+                    await page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
+                else:
+                    try:
+                        await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
+                    except Exception:
+                        pass
 
         try:
             return await page.evaluate(
@@ -510,22 +514,31 @@ async def main() -> int:
     parser = argparse.ArgumentParser(description="通过 CDP 获取页面 DOM/HTML 并转换为 Markdown")
     parser.add_argument("--url", required=True, help="目标页面 URL")
     parser.add_argument("--timeout", type=int, default=15, help="页面加载超时，单位秒")
+    parser.add_argument("--refresh", action="store_true", help="复用已有标签页时先刷新再抓取")
     args = parser.parse_args()
 
     try:
-        html = await fetch_html(args.url, args.timeout)
+        html = await fetch_html(args.url, args.timeout, refresh=args.refresh)
         full_markdown = html_to_markdown(html, only_main=False)
         main_markdown = html_to_markdown(html, only_main=True)
 
         output_dir = Path(tempfile.mkdtemp(prefix="toMD-"))
         full_path = output_dir / "full.md"
         main_path = output_dir / "main.md"
+        html_path = output_dir / "page.html"
 
         full_path.write_text(full_markdown, encoding="utf-8")
         main_path.write_text(main_markdown, encoding="utf-8")
+        html_path.write_text(html, encoding="utf-8")
+
+        inline_main_markdown = main_path.stat().st_size <= INLINE_MAIN_MD_MAX_BYTES
+        if inline_main_markdown:
+            print(main_markdown, end="" if main_markdown.endswith("\n") else "\n")
 
         print(f"full_md={full_path}")
-        print(f"main_md={main_path}")
+        if not inline_main_markdown:
+            print(f"main_md={main_path}")
+        print(f"html={html_path}")
         return 0
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
