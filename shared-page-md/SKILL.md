@@ -24,7 +24,7 @@ description: 读取用户提供的网页 URL，并通过复用当前浏览器会
 3. 在 `shared-page-md` skill 目录下运行：
 
 ```powershell
-python .\scripts\toMD.py --url <url>
+python .\scripts\page_to_md.py --url <url>
 ```
 
 4. 脚本会在系统临时目录下自动创建本次输出目录，并写出两个文件：
