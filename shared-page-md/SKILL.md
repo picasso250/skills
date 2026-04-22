@@ -28,7 +28,7 @@ python .\scripts\page_to_md.py --url <url>
 ```
 
 4. 脚本会在系统临时目录下自动创建本次输出目录，并恒写出：
-   - `full.md`: `body` 转出的 Markdown
+   - `full.md`: 当前页面 `body` 转出的 Markdown；若命中域名 adaptor，可能已删除该站已知噪声节点
    - `page.html`: 抓到的 HTML
    - `main.md`: 仅当页面存在 `main` 或 `article` 时才写出
 5. 从 stdout 读取结果：
@@ -37,7 +37,9 @@ python .\scripts\page_to_md.py --url <url>
    - 恒打印 `full_md=<path>`
    - 恒打印 `html=<path>`
 6. 默认先取 `main` 或 `article`；若不存在，则直接使用 `body` 的 Markdown。
-7. 根据 Markdown 继续执行用户任务：
+7. 页面抓取默认不再依赖 `domcontentloaded` 作为正文就绪信号，而是在导航完成后统一额外等待 3 秒；若命中域名 adaptor，可再追加站点专用 `ready_hint(page)` 等待。
+8. 若 `scripts/adapters/<domain>.py` 存在，则会按 `hostname` 后缀动态装载，例如 `www.youtube.com -> youtube_com.py`、`jakobnielsenphd.substack.com -> substack_com.py`；adaptor 只负责等待与噪声裁剪，不参与 `main/article` 的选择。
+9. 根据 Markdown 继续执行用户任务：
    - 需要快速理解页面时，先总结正文和页面结构
    - 需要提取信息时，优先保留标题、列表、表格、关键链接
    - 页面很长时，先给出结构化摘要，再按用户要求展开

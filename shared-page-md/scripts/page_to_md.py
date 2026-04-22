@@ -1,5 +1,7 @@
 import argparse
 import asyncio
+import importlib.util
+import inspect
 import json
 import re
 import sys
@@ -13,6 +15,7 @@ from playwright.async_api import async_playwright
 
 
 BROWSER_ENDPOINT = "http://127.0.0.1:9222"
+ADAPTERS_DIR = Path(__file__).resolve().parent / "adapters"
 
 
 def collapse_ws(text: str) -> str:
@@ -32,6 +35,74 @@ def normalize_blank_lines(text: str) -> str:
     return f"{stripped}\n" if stripped else ""
 
 
+def needs_inline_space(left: str, right: str) -> bool:
+    if not left or not right:
+        return False
+
+    left_char = left[-1]
+    right_char = right[0]
+
+    if left_char.isspace() or right_char.isspace():
+        return False
+    if left.endswith("  \n") or right.startswith("\n"):
+        return False
+    if left_char in "([{/":
+        return False
+    if right_char in ")]}.,;:!?%/":
+        return False
+
+    return True
+
+
+def join_inline_fragments(parts) -> str:
+    joined = []
+    for part in parts:
+        if not part:
+            continue
+        if joined and needs_inline_space(joined[-1], part):
+            joined.append(" ")
+        joined.append(part)
+    return "".join(joined)
+
+
+def normalize_adapter_name(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+
+
+def iter_adapter_names(hostname: str) -> list[str]:
+    labels = [label for label in hostname.lower().split(".") if label]
+    names = []
+    for start in range(len(labels) - 1):
+        suffix = ".".join(labels[start:])
+        if suffix.count(".") < 1:
+            continue
+        module_name = normalize_adapter_name(suffix)
+        if module_name and module_name not in names:
+            names.append(module_name)
+    return names
+
+
+def load_adapter(url: str):
+    hostname = (urlsplit(url).hostname or "").strip().lower()
+    if not hostname:
+        return None
+
+    for module_name in iter_adapter_names(hostname):
+        module_path = ADAPTERS_DIR / f"{module_name}.py"
+        if not module_path.is_file():
+            continue
+
+        spec = importlib.util.spec_from_file_location(f"shared_page_md_{module_name}", module_path)
+        if spec is None or spec.loader is None:
+            continue
+
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    return None
+
+
 def find_main_root(soup: BeautifulSoup) -> tuple[str, Tag] | None:
     body = soup.body or soup
 
@@ -41,6 +112,10 @@ def find_main_root(soup: BeautifulSoup) -> tuple[str, Tag] | None:
             return selector, candidate
 
     return None
+
+
+def measure_html_bytes(node) -> int:
+    return len(str(node).encode("utf-8"))
 
 
 def is_button_like(node: Tag) -> bool:
@@ -131,7 +206,7 @@ def inline_children_to_md(node: Tag, skip_form_controls: bool = False) -> str:
         if skip_form_controls and isinstance(child, Tag) and child.name and child.name.lower() in {"input", "textarea", "select"}:
             continue
         parts.append(inline_to_md(child))
-    return collapse_ws("".join(parts))
+    return collapse_ws(join_inline_fragments(parts))
 
 
 def inline_to_md(node) -> str:
@@ -145,7 +220,7 @@ def inline_to_md(node) -> str:
         return ""
 
     name = node.name.lower()
-    content = "".join(inline_to_md(child) for child in node.children)
+    content = join_inline_fragments(inline_to_md(child) for child in node.children)
     content = re.sub(r"[ \t\r\f\v]+", " ", content)
 
     if name in {"script", "style", "noscript"}:
@@ -229,7 +304,7 @@ def block_to_md(node, indent: int = 0) -> str:
     if name == "blockquote":
         text = "".join(block_to_md(child, indent) for child in node.children).strip()
         if not text:
-            text = collapse_ws("".join(inline_to_md(child) for child in node.children))
+            text = collapse_ws(join_inline_fragments(inline_to_md(child) for child in node.children))
         if not text:
             return ""
         quoted = "\n".join(f"> {line}" if line.strip() else ">" for line in text.splitlines())
@@ -266,7 +341,7 @@ def block_to_md(node, indent: int = 0) -> str:
         text = "".join(parts)
         if text.strip():
             return text
-        inline_text = collapse_ws("".join(inline_to_md(child) for child in node.children))
+        inline_text = collapse_ws(join_inline_fragments(inline_to_md(child) for child in node.children))
         return f"{inline_text}\n\n" if inline_text else ""
 
     if name == "hr":
@@ -275,7 +350,7 @@ def block_to_md(node, indent: int = 0) -> str:
     if name == "li":
         return list_item_to_md(node, "- ", indent) + "\n\n"
 
-    text = collapse_ws("".join(inline_to_md(child) for child in node.children))
+    text = collapse_ws(join_inline_fragments(inline_to_md(child) for child in node.children))
     return f"{text}\n\n" if text else ""
 
 
@@ -292,7 +367,7 @@ def list_item_to_md(node: Tag, prefix: str, indent: int) -> str:
         if isinstance(child, Tag) and child.name.lower() in {"ul", "ol"}:
             continue
         inline_parts.append(inline_to_md(child))
-    inline_text = collapse_ws("".join(inline_parts))
+    inline_text = collapse_ws(join_inline_fragments(inline_parts))
 
     line = (" " * indent) + prefix + inline_text if inline_text else (" " * indent) + prefix.rstrip()
     if not child_blocks:
@@ -329,20 +404,46 @@ def table_to_md(table: Tag) -> str:
     return "\n".join(lines) + "\n\n"
 
 
-def html_to_markdown(html: str, only_main: bool = True) -> str:
+def prepare_soup(html: str, adapter=None) -> tuple[BeautifulSoup, dict | None]:
     soup = BeautifulSoup(html, "html.parser")
 
     for tag in soup.find_all(["script", "style", "noscript"]):
         tag.decompose()
 
-    main_root = find_main_root(soup) if only_main else None
-    root = main_root[1] if main_root else (None if only_main else (soup.body or soup))
-    if root is None:
-        return ""
+    body = soup.body or soup
+    prune_stats = None
+    prune = getattr(adapter, "prune", None) if adapter else None
+    if callable(prune):
+        before_bytes = measure_html_bytes(body)
+        prune(soup)
+        after_bytes = measure_html_bytes(soup.body or soup)
+        removed_bytes = max(before_bytes - after_bytes, 0)
+        removed_ratio = (removed_bytes / before_bytes * 100.0) if before_bytes else 0.0
+        adapter_name = getattr(adapter, "__name__", "")
+        prune_stats = {
+            "adapter": adapter_name.rsplit(".", 1)[-1] if adapter_name else "adapter",
+            "before_bytes": before_bytes,
+            "after_bytes": after_bytes,
+            "removed_bytes": removed_bytes,
+            "removed_ratio": removed_ratio,
+        }
 
+    return soup, prune_stats
+
+
+def markdown_from_root(root: Tag) -> str:
     parts = [block_to_md(child) for child in root.children]
     markdown = "".join(parts)
     return normalize_blank_lines(markdown)
+
+
+def html_to_markdown(html: str, only_main: bool = True, adapter=None) -> str:
+    soup, _ = prepare_soup(html, adapter=adapter)
+    root_info = find_main_root(soup) if only_main else None
+    root = root_info[1] if root_info else (None if only_main else (soup.body or soup))
+    if root is None:
+        return ""
+    return markdown_from_root(root)
 
 
 async def get_ws_url() -> str | None:
@@ -375,7 +476,7 @@ def url_matches(candidate: str, target: str) -> bool:
     return candidate_normalized == target_normalized
 
 
-async def fetch_html(url: str, timeout_seconds: int, refresh: bool = False) -> str:
+async def fetch_html(url: str, timeout_seconds: int, refresh: bool = False, adapter=None) -> str:
     timeout_ms = timeout_seconds * 1000
     playwright = await async_playwright().start()
     browser = None
@@ -401,19 +502,22 @@ async def fetch_html(url: str, timeout_seconds: int, refresh: bool = False) -> s
                 context = await browser.new_context()
                 created_context = context
             page = await context.new_page()
-            await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+            await page.goto(url, wait_until="commit", timeout=timeout_ms)
         else:
             await page.bring_to_front()
             if page.url == "about:blank":
-                await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+                await page.goto(url, wait_until="commit", timeout=timeout_ms)
             else:
                 if refresh:
-                    await page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
-                else:
-                    try:
-                        await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
-                    except Exception:
-                        pass
+                    await page.reload(wait_until="commit", timeout=timeout_ms)
+
+        await page.wait_for_timeout(3000)
+
+        ready_hint = getattr(adapter, "ready_hint", None) if adapter else None
+        if callable(ready_hint):
+            hinted = ready_hint(page, timeout_ms=timeout_ms)
+            if inspect.isawaitable(hinted):
+                await hinted
 
         try:
             return await page.evaluate(
@@ -492,10 +596,12 @@ async def main() -> int:
     args = parser.parse_args()
 
     try:
-        html = await fetch_html(args.url, args.timeout, refresh=args.refresh)
-        full_markdown = html_to_markdown(html, only_main=False)
-        main_root = find_main_root(BeautifulSoup(html, "html.parser"))
-        main_markdown = html_to_markdown(html, only_main=True)
+        adapter = load_adapter(args.url)
+        html = await fetch_html(args.url, args.timeout, refresh=args.refresh, adapter=adapter)
+        soup, prune_stats = prepare_soup(html, adapter=adapter)
+        full_markdown = markdown_from_root(soup.body or soup)
+        main_root = find_main_root(soup)
+        main_markdown = markdown_from_root(main_root[1]) if main_root else ""
         has_main_markdown = bool(main_markdown.strip())
 
         output_dir = Path(tempfile.mkdtemp(prefix="toMD-"))
@@ -509,6 +615,13 @@ async def main() -> int:
         html_path.write_text(html, encoding="utf-8")
 
         selected_markdown = main_markdown if has_main_markdown else full_markdown
+        if prune_stats:
+            print(
+                "prune="
+                f"{prune_stats['adapter']} "
+                f"{prune_stats['before_bytes']}B->{prune_stats['after_bytes']}B "
+                f"(-{prune_stats['removed_bytes']}B, {prune_stats['removed_ratio']:.2f}%)"
+            )
         if main_root:
             print(f"找到{main_root[0]}元素")
 
