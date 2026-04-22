@@ -27,11 +27,16 @@ description: 读取用户提供的网页 URL，并通过复用当前浏览器会
 python .\scripts\page_to_md.py --url <url>
 ```
 
-4. 脚本会在系统临时目录下自动创建本次输出目录，并写出两个文件：
-   - `full.md`: 整页 DOM 转出的 Markdown
-   - `main.md`: 主内容区域转出的 Markdown
-5. 从 stdout 读取这两个文件路径，再直接读取文件内容；不要依赖控制台直接承载 Markdown。
-6. 默认优先读取 `main.md`；主内容判断不准时再回退到 `full.md`。
+4. 脚本会在系统临时目录下自动创建本次输出目录，并恒写出：
+   - `full.md`: `body` 转出的 Markdown
+   - `page.html`: 抓到的 HTML
+   - `main.md`: 仅当页面存在 `main` 或 `article` 时才写出
+5. 从 stdout 读取结果：
+   - 若找到 `main` 或 `article`，最前会打印 `找到main元素` 或 `找到article元素`
+   - 随后直接打印所选中的 Markdown；有主内容时打印 `main.md` 的内容，否则打印 `full.md` 的内容
+   - 恒打印 `full_md=<path>`
+   - 恒打印 `html=<path>`
+6. 默认先取 `main` 或 `article`；若不存在，则直接使用 `body` 的 Markdown。
 7. 根据 Markdown 继续执行用户任务：
    - 需要快速理解页面时，先总结正文和页面结构
    - 需要提取信息时，优先保留标题、列表、表格、关键链接
@@ -42,14 +47,17 @@ python .\scripts\page_to_md.py --url <url>
 - 页面较短时，直接基于 Markdown 回答。
 - 页面较长时，先输出页面主题、主要分段、关键链接和表格，再展开细节。
 - 导航、页脚、推荐内容较多时，明确说明输出来自页面 DOM，可能包含噪音。
-- 默认优先使用 `main.md`，其中会尝试提取 `main` 或 `article`；找不到时会回退到更完整的页面内容。
-- 如果主内容判断不准，回退读取 `full.md`。
+- 脚本只把 `main` 或 `article` 视为主内容；若二者皆无，则直接落回 `body` 的 Markdown。
 - 发现登录态相关内容时，优先按“当前浏览器会话可见内容”理解，不要假设匿名访问结果。
 
 ## Parameters
 
 - `--url <url>`: 必填，目标页面 URL
-- 输出文件路径：脚本会自动创建临时目录，并通过 stdout 返回 `full_md=<path>` 与 `main_md=<path>`
+- 输出路径策略：
+  - 若找到 `main` 或 `article`，stdout 最前打印其元素名
+  - stdout 总是直接承载所选中的 Markdown
+  - 恒返回 `full_md=<path>`
+  - 恒返回 `html=<path>`
 
 ## Boundaries
 

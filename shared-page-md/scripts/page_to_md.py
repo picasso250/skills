@@ -13,62 +13,34 @@ from playwright.async_api import async_playwright
 
 
 BROWSER_ENDPOINT = "http://127.0.0.1:9222"
-INLINE_MAIN_MD_MAX_BYTES = 4 * 1024
 
 
 def collapse_ws(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def configure_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def normalize_blank_lines(text: str) -> str:
     text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip() + "\n"
+    stripped = text.strip()
+    return f"{stripped}\n" if stripped else ""
 
 
-def visible_text_length(node: Tag) -> int:
-    return len(collapse_ws(node.get_text(" ", strip=True)))
-
-
-def has_hidden_attr(node: Tag) -> bool:
-    attrs = getattr(node, "attrs", None)
-    if not isinstance(attrs, dict):
-        return False
-
-    if "hidden" in attrs:
-        return True
-
-    if str(attrs.get("aria-hidden", "")).strip().lower() == "true":
-        return True
-
-    style = str(attrs.get("style", "")).replace(" ", "").lower()
-    return "display:none" in style or "visibility:hidden" in style
-
-
-def is_noise_tag(node: Tag) -> bool:
-    name = getattr(node, "name", None)
-    if not isinstance(name, str):
-        return False
-    return name.lower() in {"nav", "header", "footer", "aside", "iframe"}
-
-
-def find_main_root(soup: BeautifulSoup) -> Tag:
+def find_main_root(soup: BeautifulSoup) -> tuple[str, Tag] | None:
     body = soup.body or soup
 
     for selector in ("main", "article"):
         candidate = body.select_one(selector)
-        if isinstance(candidate, Tag) and visible_text_length(candidate) >= 80:
-            return candidate
+        if isinstance(candidate, Tag):
+            return selector, candidate
 
-    return body
-
-
-def has_explicit_main_root(soup: BeautifulSoup) -> bool:
-    body = soup.body or soup
-    for selector in ("main", "article"):
-        candidate = body.select_one(selector)
-        if isinstance(candidate, Tag) and visible_text_length(candidate) >= 80:
-            return True
-    return False
+    return None
 
 
 def is_button_like(node: Tag) -> bool:
@@ -176,7 +148,7 @@ def inline_to_md(node) -> str:
     content = "".join(inline_to_md(child) for child in node.children)
     content = re.sub(r"[ \t\r\f\v]+", " ", content)
 
-    if name in {"script", "style", "noscript"} or is_noise_tag(node) or has_hidden_attr(node):
+    if name in {"script", "style", "noscript"}:
         return ""
     if name == "br":
         return "  \n"
@@ -231,7 +203,7 @@ def block_to_md(node, indent: int = 0) -> str:
         return ""
 
     name = node.name.lower()
-    if name in {"script", "style", "noscript"} or is_noise_tag(node) or has_hidden_attr(node):
+    if name in {"script", "style", "noscript"}:
         return ""
 
     if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -363,17 +335,11 @@ def html_to_markdown(html: str, only_main: bool = True) -> str:
     for tag in soup.find_all(["script", "style", "noscript"]):
         tag.decompose()
 
-    explicit_main = has_explicit_main_root(soup)
+    main_root = find_main_root(soup) if only_main else None
+    root = main_root[1] if main_root else (None if only_main else (soup.body or soup))
+    if root is None:
+        return ""
 
-    if not only_main or not explicit_main:
-        for tag in soup.find_all(["nav", "header", "footer", "aside", "iframe"]):
-            tag.decompose()
-
-        for tag in list(soup.find_all(True)):
-            if has_hidden_attr(tag):
-                tag.decompose()
-
-    root = find_main_root(soup) if only_main else (soup.body or soup)
     parts = [block_to_md(child) for child in root.children]
     markdown = "".join(parts)
     return normalize_blank_lines(markdown)
@@ -517,6 +483,8 @@ async def fetch_html(url: str, timeout_seconds: int, refresh: bool = False) -> s
 
 
 async def main() -> int:
+    configure_stdio()
+
     parser = argparse.ArgumentParser(description="通过 CDP 获取页面 DOM/HTML 并转换为 Markdown")
     parser.add_argument("--url", required=True, help="目标页面 URL")
     parser.add_argument("--timeout", type=int, default=15, help="页面加载超时，单位秒")
@@ -526,24 +494,28 @@ async def main() -> int:
     try:
         html = await fetch_html(args.url, args.timeout, refresh=args.refresh)
         full_markdown = html_to_markdown(html, only_main=False)
+        main_root = find_main_root(BeautifulSoup(html, "html.parser"))
         main_markdown = html_to_markdown(html, only_main=True)
+        has_main_markdown = bool(main_markdown.strip())
 
         output_dir = Path(tempfile.mkdtemp(prefix="toMD-"))
         full_path = output_dir / "full.md"
-        main_path = output_dir / "main.md"
         html_path = output_dir / "page.html"
+        main_path = output_dir / "main.md"
 
         full_path.write_text(full_markdown, encoding="utf-8")
-        main_path.write_text(main_markdown, encoding="utf-8")
+        if has_main_markdown:
+            main_path.write_text(main_markdown, encoding="utf-8")
         html_path.write_text(html, encoding="utf-8")
 
-        inline_main_markdown = main_path.stat().st_size <= INLINE_MAIN_MD_MAX_BYTES
-        if inline_main_markdown:
-            print(main_markdown, end="" if main_markdown.endswith("\n") else "\n")
+        selected_markdown = main_markdown if has_main_markdown else full_markdown
+        if main_root:
+            print(f"找到{main_root[0]}元素")
+
+        if selected_markdown:
+            print(selected_markdown, end="" if selected_markdown.endswith("\n") else "\n")
 
         print(f"full_md={full_path}")
-        if not inline_main_markdown:
-            print(f"main_md={main_path}")
         print(f"html={html_path}")
         return 0
     except Exception as exc:
