@@ -1,4 +1,0 @@
-interface:
-  display_name: "Feishu Bitable"
-  short_description: "Read and write Feishu Bitable data with reusable scripts."
-  default_prompt: "Use this skill to fetch a tenant access token, inspect Feishu Bitable tables and fields, and read or update records via reusable Python scripts."
