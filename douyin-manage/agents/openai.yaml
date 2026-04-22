@@ -1,0 +1,4 @@
+interface:
+  display_name: "Douyin Manage"
+  short_description: "Extract first-screen work data from Douyin Creator Center"
+  default_prompt: "Use $douyin-manage to attach to an already-open Douyin Creator Center content manage tab and export the first-screen visible work list data as structured JSON or CSV."

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Materialist Dialectics"
+  short_description: "Fact-grounded thesis-antithesis synthesis chat"
+  default_prompt: "Use $materialist-dialectics to examine my view through fact-grounded affirmation, contradiction, and synthesis."
+
+policy:
+  allow_implicit_invocation: false
