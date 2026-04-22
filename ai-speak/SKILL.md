@@ -8,7 +8,16 @@ description: 仅用于实时语音播报与自言自语模式；不用于导出 
 此技能用于让 AI 直接开口播报（实时说话），不负责离线音频文件生产。
 
 ## 使用前提
-1.  **必须**在 `$HOME\GPT-SoVITS` 目录下运行 `python server.py`。
+1.  默认 server 已在后台运行，直接说话即可。
+2.  如需手动启动/重启 server，**必须**在正确目录下用虚拟环境启动（踩坑记录：server.py 依赖相对路径导入，不能在其他目录直接用绝对路径运行）：
+    - 方式一：兼容性最强的方式：
+      ```bash
+      cd ~/github/RVC-Boss/GPT-SoVITS; pwsh.exe -NoProfile -Command 'Start-Process -FilePath ".\venv\Scripts\python.exe" -ArgumentList "server.py" -WindowStyle Hidden'
+      ```
+    - 方式二：纯 bash nohup 方式：
+      ```bash
+      cd ~/github/RVC-Boss/GPT-SoVITS && nohup ./venv/Scripts/python.exe server.py > server.log 2>&1 &
+      ```
 
 ## 自言自语模式 (Self-Talk Mode)
 
