@@ -8,7 +8,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 from playwright.async_api import async_playwright
 
 
@@ -163,6 +163,9 @@ def inline_children_to_md(node: Tag, skip_form_controls: bool = False) -> str:
 
 
 def inline_to_md(node) -> str:
+    if isinstance(node, Comment):
+        return ""
+
     if isinstance(node, NavigableString):
         return str(node)
 
@@ -217,6 +220,9 @@ def inline_to_md(node) -> str:
 
 
 def block_to_md(node, indent: int = 0) -> str:
+    if isinstance(node, Comment):
+        return ""
+
     if isinstance(node, NavigableString):
         text = collapse_ws(str(node))
         return f"{text}\n\n" if text else ""
