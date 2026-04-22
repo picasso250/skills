@@ -35,6 +35,46 @@ def normalize_blank_lines(text: str) -> str:
     return f"{stripped}\n" if stripped else ""
 
 
+def dedupe_adjacent_short_phrase_line(line: str) -> str:
+    match = re.match(r"^(\s*(?:[-*+] |\d+\. |#+ )?)(.*?)(\s*)$", line)
+    if not match:
+        return line
+
+    prefix, content, suffix = match.groups()
+    content = collapse_ws(content)
+    if not content or len(content) > 80:
+        return line
+    if any(char in content for char in "[]()|`"):
+        return line
+
+    words = content.split(" ")
+    if len(words) < 2:
+        return line
+
+    max_phrase_words = min(6, len(words) // 2)
+    for phrase_words in range(1, max_phrase_words + 1):
+        if len(words) % phrase_words != 0:
+            continue
+
+        phrase = words[:phrase_words]
+        repeats = len(words) // phrase_words
+        if repeats < 2:
+            continue
+
+        phrase_text = " ".join(phrase)
+        if len(phrase_text) < 8 and phrase_words < 2:
+            continue
+
+        if all(words[index:index + phrase_words] == phrase for index in range(0, len(words), phrase_words)):
+            return f"{prefix}{phrase_text}{suffix}"
+
+    return line
+
+
+def dedupe_adjacent_short_phrases(text: str) -> str:
+    return "\n".join(dedupe_adjacent_short_phrase_line(line) for line in text.splitlines())
+
+
 def needs_inline_space(left: str, right: str) -> bool:
     if not left or not right:
         return False
@@ -419,14 +459,15 @@ def prepare_soup(html: str, adapter=None) -> tuple[BeautifulSoup, dict | None]:
         after_bytes = measure_html_bytes(soup.body or soup)
         removed_bytes = max(before_bytes - after_bytes, 0)
         removed_ratio = (removed_bytes / before_bytes * 100.0) if before_bytes else 0.0
-        adapter_name = getattr(adapter, "__name__", "")
-        prune_stats = {
-            "adapter": adapter_name.rsplit(".", 1)[-1] if adapter_name else "adapter",
-            "before_bytes": before_bytes,
-            "after_bytes": after_bytes,
-            "removed_bytes": removed_bytes,
-            "removed_ratio": removed_ratio,
-        }
+        if removed_bytes:
+            adapter_name = getattr(adapter, "__name__", "")
+            prune_stats = {
+                "adapter": adapter_name.rsplit(".", 1)[-1] if adapter_name else "adapter",
+                "before_bytes": before_bytes,
+                "after_bytes": after_bytes,
+                "removed_bytes": removed_bytes,
+                "removed_ratio": removed_ratio,
+            }
 
     return soup, prune_stats
 
@@ -434,6 +475,7 @@ def prepare_soup(html: str, adapter=None) -> tuple[BeautifulSoup, dict | None]:
 def markdown_from_root(root: Tag) -> str:
     parts = [block_to_md(child) for child in root.children]
     markdown = "".join(parts)
+    markdown = dedupe_adjacent_short_phrases(markdown)
     return normalize_blank_lines(markdown)
 
 
@@ -623,11 +665,12 @@ async def main() -> int:
                 f"(-{prune_stats['removed_bytes']}B, {prune_stats['removed_ratio']:.2f}%)"
             )
         if main_root:
-            print(f"找到{main_root[0]}元素")
+            print(f"<!-- {main_root[0]} -->")
 
         if selected_markdown:
             print(selected_markdown, end="" if selected_markdown.endswith("\n") else "\n")
 
+        print("---")
         print(f"full_md={full_path}")
         print(f"html={html_path}")
         return 0

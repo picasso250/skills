@@ -32,8 +32,9 @@ python .\scripts\page_to_md.py --url <url>
    - `page.html`: 抓到的 HTML
    - `main.md`: 仅当页面存在 `main` 或 `article` 时才写出
 5. 从 stdout 读取结果：
-   - 若找到 `main` 或 `article`，最前会打印 `找到main元素` 或 `找到article元素`
+   - 若找到 `main` 或 `article`，最前会打印 `<!-- main -->` 或 `<!-- article -->`
    - 随后直接打印所选中的 Markdown；有主内容时打印 `main.md` 的内容，否则打印 `full.md` 的内容
+   - 正文结束后会打印一行 `---`，用以分隔正文与路径元信息
    - 恒打印 `full_md=<path>`
    - 恒打印 `html=<path>`
 6. 默认先取 `main` 或 `article`；若不存在，则直接使用 `body` 的 Markdown。
@@ -56,8 +57,9 @@ python .\scripts\page_to_md.py --url <url>
 
 - `--url <url>`: 必填，目标页面 URL
 - 输出路径策略：
-  - 若找到 `main` 或 `article`，stdout 最前打印其元素名
+  - 若找到 `main` 或 `article`，stdout 最前打印 `<!-- main -->` 或 `<!-- article -->`
   - stdout 总是直接承载所选中的 Markdown
+  - 路径元信息之前恒有一行 `---`
   - 恒返回 `full_md=<path>`
   - 恒返回 `html=<path>`
 
