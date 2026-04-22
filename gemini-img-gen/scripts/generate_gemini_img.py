@@ -18,6 +18,7 @@ def parse_args():
     )
     parser.add_argument("prompt", help="Prompt to send to Gemini image generation")
     parser.add_argument("output_path", help="Target path for the saved image")
+    parser.add_argument("--keep-tab", action="store_true", help="Keep the browser tab open after generation")
     return parser.parse_args()
 
 
@@ -120,7 +121,7 @@ Write-Output $path
     return output_path
 
 
-async def run(prompt, output_path):
+async def run(prompt, output_path, keep_tab=False):
     os.environ["NO_PROXY"] = "localhost,127.0.0.1"
     save_path = Path(output_path).resolve()
 
@@ -222,8 +223,9 @@ async def run(prompt, output_path):
             error_path = save_path.with_suffix(".png").with_name(save_path.stem + "_error.png")
             await page.screenshot(path=error_path)
         finally:
-            await page.close()
+            if not keep_tab:
+                await page.close()
 
 if __name__ == "__main__":
     args = parse_args()
-    asyncio.run(run(args.prompt, args.output_path))
+    asyncio.run(run(args.prompt, args.output_path, args.keep_tab))
