@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import argparse
-import json
+import contextlib
 import os
 import subprocess
 import sys
 import tempfile
+import warnings
 from pathlib import Path
 
 HOME_DIR = Path.home()
@@ -25,17 +26,40 @@ FUNASR_PUNC_DIR = "tools/asr/models/punc_ct-transformer_zh-cn-common-vocab272727
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate srt/json timeline from input audio.")
+    parser = argparse.ArgumentParser(description="Generate srt timeline and ASR text from input audio.")
     parser.add_argument("--audio-file", required=True, help="Input audio file path, supports wav/mp3.")
     parser.add_argument("--output-dir", help="Output directory, defaults to a temp directory.")
-    parser.add_argument("--output-basename", required=True, help="Output basename for srt/json/asr artifacts.")
+    parser.add_argument("--output-basename", required=True, help="Output basename for srt/asr artifacts.")
     parser.add_argument(
         "--gpt-sovits-root",
         default=str(DEFAULT_GPT_SOVITS_ROOT),
         help="Path to GPT-SoVITS root",
     )
     parser.add_argument("--ffmpeg-bin", default="ffmpeg", help="ffmpeg executable name/path.")
+    parser.add_argument("--verbose", action="store_true", help="Print raw FunASR progress and warnings.")
     return parser.parse_args()
+
+
+def configure_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
+@contextlib.contextmanager
+def quiet_external_output(enabled: bool):
+    if not enabled:
+        yield
+        return
+
+    with open(os.devnull, "w", encoding="utf-8") as sink:
+        with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                yield
 
 
 def ensure_output_dir(output_dir: str | None) -> Path:
@@ -56,6 +80,8 @@ def maybe_reexec_in_gpt_venv(root_dir: Path) -> None:
         return
     env = os.environ.copy()
     env[REEXEC_ENV_KEY] = "1"
+    env.setdefault("PYTHONUTF8", "1")
+    env["PYTHONIOENCODING"] = "utf-8"
     result = subprocess.run([str(venv_python), *sys.argv], env=env)
     raise SystemExit(result.returncode)
 
@@ -75,28 +101,30 @@ def convert_to_wav_if_needed(audio_file: Path, ffmpeg_bin: str) -> tuple[Path, P
         "1",
         str(tmp_wav),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
-        raise RuntimeError(f"ffmpeg convert failed: {result.stderr.strip()}")
+        stderr = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"ffmpeg convert failed: {stderr}")
     return tmp_wav, tmp_wav.parent
 
 
-def build_acoustic_timeline(gpt_sovits_root: Path, wav_file: Path) -> list[dict]:
-    try:
-        from funasr import AutoModel
-    except Exception as exc:
-        raise RuntimeError(f"Failed to import FunASR in GPT-SoVITS venv: {exc}") from exc
+def build_acoustic_timeline(gpt_sovits_root: Path, wav_file: Path, verbose: bool = False) -> list[dict]:
+    with quiet_external_output(not verbose):
+        try:
+            from funasr import AutoModel
+        except Exception as exc:
+            raise RuntimeError(f"Failed to import FunASR in GPT-SoVITS venv: {exc}") from exc
 
-    model_ref = str(FUNASR_ASR_MODEL_DIR) if FUNASR_ASR_MODEL_DIR.exists() else FUNASR_ASR_MODEL_ID
-    vad_ref = str((gpt_sovits_root / FUNASR_VAD_DIR).resolve())
-    punc_ref = str((gpt_sovits_root / FUNASR_PUNC_DIR).resolve())
-    asr_model = AutoModel(model=model_ref, vad_model=vad_ref, punc_model=punc_ref)
+        model_ref = str(FUNASR_ASR_MODEL_DIR) if FUNASR_ASR_MODEL_DIR.exists() else FUNASR_ASR_MODEL_ID
+        vad_ref = str((gpt_sovits_root / FUNASR_VAD_DIR).resolve())
+        punc_ref = str((gpt_sovits_root / FUNASR_PUNC_DIR).resolve())
+        asr_model = AutoModel(model=model_ref, vad_model=vad_ref, punc_model=punc_ref)
 
-    result = asr_model.generate(
-        input=str(wav_file),
-        sentence_timestamp=True,
-        return_raw_text=True,
-    )
+        result = asr_model.generate(
+            input=str(wav_file),
+            sentence_timestamp=True,
+            return_raw_text=True,
+        )
     if not result:
         raise RuntimeError("FunASR returned empty result")
 
@@ -142,26 +170,13 @@ def write_srt(path: Path, records: list[dict]) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def write_json(path: Path, records: list[dict]) -> None:
-    output = []
-    for idx, item in enumerate(records, start=1):
-        output.append(
-            {
-                "index": idx,
-                "start_sec": round(float(item["start_sec"]), 3),
-                "end_sec": round(float(item["end_sec"]), 3),
-                "text": str(item["text"]),
-            }
-        )
-    path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
 def write_asr_text(path: Path, records: list[dict]) -> None:
     lines = [str(item["text"]) for item in records]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> int:
+    configure_stdio()
     args = parse_args()
     audio_file = Path(args.audio_file).resolve()
     if not audio_file.exists():
@@ -171,14 +186,13 @@ def main() -> int:
     output_dir = ensure_output_dir(args.output_dir)
     base = args.output_basename
     srt_path = output_dir / f"{base}.srt"
-    json_path = output_dir / f"{base}.segments.json"
     asr_text_path = output_dir / f"{base}.asr.txt"
 
     try:
         gpt_sovits_root = Path(args.gpt_sovits_root).resolve()
         maybe_reexec_in_gpt_venv(gpt_sovits_root)
         wav_for_asr, tmp_dir = convert_to_wav_if_needed(audio_file, args.ffmpeg_bin)
-        records = build_acoustic_timeline(gpt_sovits_root, wav_for_asr)
+        records = build_acoustic_timeline(gpt_sovits_root, wav_for_asr, verbose=args.verbose)
     except Exception as exc:
         print(f"ERROR: {exc}")
         return 1
@@ -192,13 +206,12 @@ def main() -> int:
                 pass
 
     write_srt(srt_path, records)
-    write_json(json_path, records)
     write_asr_text(asr_text_path, records)
 
-    print(f"OUTPUT_DIR:{output_dir}")
-    print(f"OUTPUT_SRT:{srt_path}")
-    print(f"OUTPUT_SEGMENTS_JSON:{json_path}")
-    print(f"OUTPUT_ASR_TEXT:{asr_text_path}")
+    print(f"OK:{output_dir}")
+    print(f"SRT:{srt_path}")
+    print(f"ASR_TEXT:{asr_text_path}")
+    print(f"SEGMENTS:{len(records)}")
     return 0
 
 

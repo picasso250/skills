@@ -1,6 +1,6 @@
 ---
 name: audio-to-srt
-description: 用户提供 wav/mp3 音频后，生成声学对齐的 srt/json 字幕时间轴。
+description: 用户提供 wav/mp3 音频后，生成声学对齐的 srt 字幕和 asr 文本。
 ---
 
 # Audio To Srt
@@ -13,7 +13,7 @@ description: 用户提供 wav/mp3 音频后，生成声学对齐的 srt/json 字
 
 1. 读取用户提供的音频文件（wav/mp3）。
 2. 使用 FunASR 对音频做声学识别与时间对齐。
-3. 输出 `srt`、`segments.json`、`asr.txt`。
+3. 输出 `srt`、`asr.txt`。
 
 ## Runtime
 
@@ -33,8 +33,9 @@ python audio-to-srt/scripts/render_audio_to_srt.py --audio-file C:\path\to\input
 python audio-to-srt/scripts/render_audio_to_srt.py --audio-file C:\path\to\input.mp3 --output-dir C:\path\to\out --output-basename demo
 ```
 
+默认输出为安静模式，只打印产物路径和分段数。需要查看 FunASR 原始进度条、依赖 warning 或调试日志时，加 `--verbose`。
+
 ## Output
 
 - `*.srt`: 字幕文件
-- `*.segments.json`: 声学对齐后的分段及时间戳（秒）
 - `*.asr.txt`: ASR 识别文本（每行一段）
