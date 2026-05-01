@@ -1,0 +1,4 @@
+interface:
+  display_name: "Xiaohongshu Manage"
+  short_description: "Scroll XHS creator notes and export visible text."
+  default_prompt: "Use the opened Xiaohongshu creator note manager page, scroll through loaded notes with CDP, and export a txt report."
