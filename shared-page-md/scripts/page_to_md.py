@@ -35,6 +35,13 @@ def normalize_blank_lines(text: str) -> str:
     return f"{stripped}\n" if stripped else ""
 
 
+def omit_data_url_payload(value: str) -> str:
+    match = re.match(r"^(data:[^,;]+(?:;[^,;]+)*;base64,)", value, flags=re.IGNORECASE)
+    if not match:
+        return value
+    return f"{match.group(1)}..."
+
+
 def dedupe_adjacent_short_phrase_line(line: str) -> str:
     match = re.match(r"^(\s*(?:[-*+] |\d+\. |#+ )?)(.*?)(\s*)$", line)
     if not match:
@@ -275,14 +282,14 @@ def inline_to_md(node) -> str:
         text = content.strip().replace("`", "\\`")
         return f"`{text}`" if text else ""
     if name == "a":
-        href = (node.get("href") or "").strip()
+        href = omit_data_url_payload((node.get("href") or "").strip())
         text = collapse_ws(content)
         if href and text:
             return f"[{text}]({href})"
         return text or href
     if name == "img":
         alt = collapse_ws(node.get("alt", ""))
-        src = (node.get("src") or "").strip()
+        src = omit_data_url_payload((node.get("src") or "").strip())
         if src:
             return f"![{alt}]({src})"
         return alt

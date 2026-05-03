@@ -20,7 +20,10 @@ def get_ws_url(host="localhost", port=9222):
         print(f"Failed to auto-detect browser WS URL from /json/version: {e}")
     return None
 
-async def get_bilibili_media(bvid, ws_url=None, download_type="all"):
+async def get_bilibili_media(bvid, ws_url=None, download_type="all", output_dir="."):
+    output_dir = os.path.abspath(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
+
     if not ws_url:
         ws_url = get_ws_url()
 
@@ -92,8 +95,8 @@ async def get_bilibili_media(bvid, ws_url=None, download_type="all"):
         }
         """
 
-        audio_tmp = f"{safe_title}_tmp_audio.m4a"
-        video_tmp = f"{safe_title}_tmp_video.m4s"
+        audio_tmp = os.path.join(output_dir, f"{safe_title}_tmp_audio.m4a")
+        video_tmp = os.path.join(output_dir, f"{safe_title}_tmp_video.m4s")
 
         if download_type in ["audio", "all"]:
             best_audio = max(dash["audio"], key=lambda x: x.get("bandwidth", 0))
@@ -104,7 +107,7 @@ async def get_bilibili_media(bvid, ws_url=None, download_type="all"):
                 f.write(base64.b64decode(audio_b64))
             
             if download_type == "audio":
-                final_audio = f"{safe_title}.m4a"
+                final_audio = os.path.join(output_dir, f"{safe_title}.m4a")
                 os.rename(audio_tmp, final_audio)
                 print(f"Successfully saved audio to: {final_audio}")
                 return final_audio
@@ -120,7 +123,7 @@ async def get_bilibili_media(bvid, ws_url=None, download_type="all"):
             if download_type == "video":
                 # 对于 B 站的 dash video，直接保存可能无法播放，理想情况是合并到 mp4 或加上空音频
                 # 这里我们简单直接合并成 mp4（无声视频）
-                final_video = f"{safe_title}_video.mp4"
+                final_video = os.path.join(output_dir, f"{safe_title}_video.mp4")
                 import subprocess
                 print(f"Processing video into {final_video}...")
                 subprocess.run(f'ffmpeg -i "{video_tmp}" -c copy "{final_video}" -y', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -129,7 +132,7 @@ async def get_bilibili_media(bvid, ws_url=None, download_type="all"):
                 return final_video
 
         if download_type == "all":
-            final_file = f"{safe_title}.mp4"
+            final_file = os.path.join(output_dir, f"{safe_title}.mp4")
             print(f"Muxing audio and video into {final_file}...")
             import subprocess
             cmd = f'ffmpeg -i "{video_tmp}" -i "{audio_tmp}" -c copy "{final_file}" -y'
@@ -149,6 +152,7 @@ if __name__ == "__main__":
     parser.add_argument("bvid", help="Bilibili BV ID")
     parser.add_argument("--ws", help="WebSocket URL for CDP")
     parser.add_argument("--type", choices=["audio", "video", "all"], default="all", help="What to download (default: all)")
+    parser.add_argument("--output-dir", default=".", help="Directory to save downloaded files (default: current directory)")
     args = parser.parse_args()
 
-    asyncio.run(get_bilibili_media(args.bvid, args.ws, args.type))
+    asyncio.run(get_bilibili_media(args.bvid, args.ws, args.type, args.output_dir))

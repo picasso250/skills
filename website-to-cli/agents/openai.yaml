@@ -1,4 +1,4 @@
 interface:
   display_name: "Website to CLI"
-  short_description: "Convert websites into CLI automations step-by-step"
-  default_prompt: "Turn this site into a CLI using remote Chrome debugging and Playwright, asking me to confirm each transformation step."
+  short_description: "Turn live browser flows into CLI automations step-by-step"
+  default_prompt: "Turn this browser or website flow into a CLI using remote Chrome debugging and Playwright. Reuse open tabs when possible, inspect the live DOM first, and ask me to confirm each transformation step."

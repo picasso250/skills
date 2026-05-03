@@ -1,0 +1,4 @@
+interface:
+  display_name: "Douyin Audio Downloader"
+  short_description: "Download audio from an open Douyin video page via CDP."
+  default_prompt: "Download the audio from this Douyin video URL using the current browser session."

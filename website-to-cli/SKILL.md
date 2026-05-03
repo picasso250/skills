@@ -1,6 +1,6 @@
 ---
 name: website-to-cli
-description: Guided meta workflow for converting websites into CLI automations by pairing Chrome DevTools (port 9222) + Python Playwright with human confirmations; use when each site action must become a deterministic CLI command reviewed step-by-step before execution.
+description: Guided workflow for converting repeatable browser or website interaction flows into CLI automations by pairing Chrome DevTools (port 9222) + Python Playwright with human confirmations. Use when Codex needs to reuse an already-open browser tab, inspect live DOM state, validate each step in the real page, and turn the approved flow into a deterministic CLI command reviewed step-by-step before execution.
 ---
 
 # Website To Cli
@@ -35,16 +35,23 @@ Guide the user through capturing the manual story, attaching Playwright to Chrom
 - 物理点击坐标默认取元素中心附近，并带随机偏移：`x = x0 + rand(-width/8, width/8)`，`y = y0 + rand(-height/8, height/8)`。
 - 物理 hover 坐标也默认取元素中心附近，并带随机偏移：`x = x0 + rand(-width/8, width/8)`，`y = y0 + rand(-height/8, height/8)`。
 - 这个技能现在也承担原先独立 `browser` skill 的 CDP 会话附着职责；涉及浏览器会话选择、tab 枚举、复用已打开页面时，统一使用本技能下的基础脚本，不再依赖独立 `browser` skill。
+- 对 Chrome CDP，不要把 `http://127.0.0.1:9222` 直接传给 `connect_over_cdp()`；先读取 `/json/version`，再使用其中的 `webSocketDebuggerUrl`，否则某些运行时会反复返回 HTTP 400。
 
-开始任何基于该技能的新自动化之前，先阅读这三个脚本：
+开始任何基于该技能的新自动化之前，先阅读这五个脚本：
 - `scripts/fetch_ws.py`
 - `scripts/ls-tabs.py`
 - `scripts/new-tab.py`
+- `scripts/cdp_common.py`
+- `scripts/eval_tab_js.py`
 
-这三个脚本是基础设施：
+其中前三个脚本是基础设施：
 - `fetch_ws.py` 用来确认 DevTools 连接信息和 `wsEndpoint`。
 - `ls-tabs.py` 用来确认当前有哪些标签页可复用，以及目标页面是否已经存在。
 - `new-tab.py` 用来在现有 DevTools 会话里稳定打开一个新的目标标签页；若存在多个 browser context，应通过 `--match-url` 显式选中目标 context。
+
+另外两个脚本用于现场观察：
+- `cdp_common.py` 提供 `webSocketDebuggerUrl` 解析、context/page 枚举、按精确 URL 选页等共用能力。
+- `eval_tab_js.py` 用来在已打开的目标 tab 上直接执行 JavaScript，快速获取 DOM 结构、文本、坐标、属性和页面状态。
 
 ### Step 1: Capture the story and acceptance criteria
 - Read the user’s manual flow and list the pages, buttons, inputs, and outputs they care about.
@@ -54,6 +61,7 @@ Guide the user through capturing the manual story, attaching Playwright to Chrom
 ### Step 2: Attach to Chrome DevTools and pin the websocket
 - Launch Chrome/Edge with `--remote-debugging-port=9222` and confirm you can reach `http://127.0.0.1:9222/json/version`.
 - Run `python scripts/fetch_ws.py --host localhost --port 9222` (swap `localhost` for a remote host if necessary) to list available tabs and their `webSocketDebuggerUrl`.
+- Never pass the raw `http://127.0.0.1:9222` endpoint straight into Playwright; resolve `/json/version` first and keep the returned `webSocketDebuggerUrl`.
 - Ask the user which page/window should drive the CLI, note its title/URL, and save the matching `wsEndpoint` for later.
 - If the target page is already open, prefer reusing that tab in the verification loop instead of opening a fresh one.
 
@@ -61,6 +69,7 @@ Guide the user through capturing the manual story, attaching Playwright to Chrom
 - Start from `scripts/cli_template.py`, plugging in the confirmed `ws_endpoint` and `url`.
 - Reuse the confirmed target tab whenever possible so each validation step stays attached to the same live page state.
 - For a new or ambiguous UI state, split verification into an observe step first and an action step second.
+- Before writing an action script for a new page state, prefer inspecting the live tab first with `python scripts/eval_tab_js.py --url <exact-url>` and pipe the JavaScript via `--code` or stdin.
 - After opening a page, insert the default stabilized wait of about `5 +/- 0.5s` before treating the page as ready.
 - Before every physical click, insert the default pre-click wait of about `1 +/- 0.5s`.
 - Before every physical hover, insert the default pre-hover wait of about `1 +/- 0.5s`.
@@ -88,8 +97,9 @@ Guide the user through capturing the manual story, attaching Playwright to Chrom
 
 ## Resources
 - Use `references/human-in-loop.md` whenever you need phrasing for check-ins, progress updates, or describing trade-offs and open questions.
-- Read `scripts/fetch_ws.py`, `scripts/ls-tabs.py`, and `scripts/new-tab.py` before building a new site-specific script on top of this skill.
+- Read `scripts/fetch_ws.py`, `scripts/ls-tabs.py`, `scripts/new-tab.py`, `scripts/cdp_common.py`, and `scripts/eval_tab_js.py` before building a new site-specific script on top of this skill.
 - Run `python scripts/fetch_ws.py --host localhost --port 9222` before touching the CLI to capture the correct `webSocketDebuggerUrl`.
 - Prefer reusing an existing matching tab discovered via `scripts/ls-tabs.py`; use `scripts/new-tab.py` only when no suitable page is already open.
+- Use `python scripts/eval_tab_js.py --url <exact-page-url> --code "<js>"` or pipe JS via stdin when you need to inspect a live tab before deciding selectors or physical click coordinates.
 - Run `python scripts/new-tab.py --url <target>` when the next verification step needs a fresh tab instead of reusing an existing page.
 - Start each refactor from `python scripts/cli_template.py --ws-endpoint <url> --url <homepage>` so you maintain a predictable entry point and keep the human confirming every change.

@@ -1,5 +1,5 @@
 ---
-name: wechat-mp-publish / 发布到微信公众号
+name: wechat-mp-publish
 description: Browser automation skill for publishing to WeChat Official Accounts (mp.weixin.qq.com). 将微信公众号后台发布流程拆成逐步验证脚本，再确认后合并为主 CLI。
 ---
 
