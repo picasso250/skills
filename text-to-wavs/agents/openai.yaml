@@ -1,4 +1,0 @@
-interface:
-  display_name: "Text To Wavs"
-  short_description: "Generate subtitles from approved wav + raw text"
-  default_prompt: "Use $text-to-wavs to generate srt/json subtitle timing from an existing approved wav and raw text without modifying audio."
