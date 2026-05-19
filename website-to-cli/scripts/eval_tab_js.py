@@ -38,18 +38,25 @@ def read_code(args: argparse.Namespace) -> str:
     return code
 
 
-def main(argv: list[str]) -> int:
-    args = parse_args(argv)
-    code = read_code(args)
-    ws_url = get_ws_url(args.endpoint)
+def eval_in_tab(url: str, code: str, endpoint: str = DEFAULT_ENDPOINT):
+    code = code.strip()
+    if not code:
+        raise RuntimeError("Missing JavaScript code.")
 
+    ws_url = get_ws_url(endpoint)
     with sync_playwright() as playwright:
         browser = playwright.chromium.connect_over_cdp(ws_url)
         try:
-            page = find_page_by_exact_url(browser, args.url)
-            result = page.evaluate(code)
+            page = find_page_by_exact_url(browser, url)
+            return page.evaluate(code)
         finally:
             browser.close()
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    code = read_code(args)
+    result = eval_in_tab(args.url, code, args.endpoint)
 
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
     return 0
