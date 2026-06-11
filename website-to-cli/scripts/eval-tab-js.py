@@ -15,7 +15,7 @@ from cdp_common import DEFAULT_ENDPOINT, find_page_by_exact_url, get_ws_url
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="eval_tab_js.py",
+        prog="eval-tab-js.py",
         description="Evaluate JavaScript in an existing browser tab matched by exact URL.",
     )
     parser.add_argument("--url", required=True, help="Exact page URL to match.")
