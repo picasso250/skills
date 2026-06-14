@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cloudflare Access Add Email"
+  short_description: "Append an email to a Cloudflare Access reusable policy."
+  default_prompt: "Add an email address to the configured Cloudflare Access policy."
