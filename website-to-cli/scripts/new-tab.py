@@ -9,10 +9,9 @@ import argparse
 import json
 import logging
 import sys
-from urllib.error import URLError
-from urllib.request import urlopen
-
-from playwright.sync_api import Error, sync_playwright
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 
 def setup_logging() -> None:
@@ -47,24 +46,11 @@ def resolve_ws_endpoint(cdp_url: str) -> str:
     return ws_endpoint
 
 
-def choose_context(browser, match_url: str | None):
-    if not browser.contexts:
-        raise RuntimeError("No existing browser contexts found in the DevTools session.")
-
-    if match_url:
-        for context in browser.contexts:
-            for page in context.pages:
-                if match_url in page.url:
-                    logging.info("Reusing context matched by page URL: %s", page.url)
-                    return context
-        raise RuntimeError(f"No browser context has a page URL containing: {match_url}")
-
-    if len(browser.contexts) == 1:
-        return browser.contexts[0]
-
-    raise RuntimeError(
-        "Multiple browser contexts are open. Pass --match-url to select the intended context."
-    )
+def open_tab(cdp_url: str, url: str) -> dict:
+    new_url = f"{cdp_url.rstrip('/')}/json/new?{quote(url, safe='')}"
+    request = Request(new_url, method="PUT", headers={"User-Agent": "website-to-cli/new-tab"})
+    with urlopen(request, timeout=5) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def main() -> None:
@@ -72,22 +58,16 @@ def main() -> None:
     args = parse_args()
 
     try:
-        ws_endpoint = resolve_ws_endpoint(args.cdp_url)
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.connect_over_cdp(ws_endpoint)
-            try:
-                context = choose_context(browser, args.match_url)
-                page = context.new_page()
-                page.set_default_timeout(args.timeout * 1000)
-                logging.info("Opening new tab: %s", args.url)
-                page.goto(args.url, wait_until="domcontentloaded")
-                page.wait_for_timeout(1500)
-                print(f"Opened tab title: {page.title()}")
-                print(f"Opened tab url: {page.url}")
-            finally:
-                browser.close()
-    except Error as exc:
-        logging.error("Failed to open new tab: %s", exc)
+        resolve_ws_endpoint(args.cdp_url)
+        if args.match_url:
+            logging.info("--match-url is accepted for workflow compatibility; /json/new opens a fresh target.")
+        logging.info("Opening new tab: %s", args.url)
+        target = open_tab(args.cdp_url, args.url)
+        print(f"Opened tab title: {target.get('title', '')}")
+        print(f"Opened tab url: {target.get('url', '')}")
+        print(f"Opened tab ws: {target.get('webSocketDebuggerUrl', '')}")
+    except HTTPError as exc:
+        logging.error("Failed to open new tab: HTTP %s %s", exc.code, exc.reason)
         sys.exit(1)
     except URLError as exc:
         logging.error("Failed to reach Chrome DevTools: %s", exc)

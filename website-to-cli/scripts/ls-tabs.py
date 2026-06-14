@@ -44,7 +44,6 @@ def describe_target(idx: int, target: dict[str, Any]) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="List remote debugging tabs for website-to-cli.")
-    parser.add_argument("--host", default="localhost")
     parser.add_argument("--port", type=int, default=9222)
     parser.add_argument("--path", default="/json/list")
     parser.add_argument("--timeout", type=float, default=5.0)
@@ -65,7 +64,7 @@ def main() -> None:
     except AttributeError:
         pass
 
-    all_targets = fetch_targets(args.host, args.port, args.path, args.timeout)
+    all_targets = fetch_targets("127.0.0.1", args.port, args.path, args.timeout)
     if not all_targets:
         print("No tabs returned by DevTools.", file=sys.stderr)
         sys.exit(1)

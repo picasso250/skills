@@ -76,7 +76,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Fetch remote debugging targets from Chrome/Edge for website-to-cli workflows."
     )
-    parser.add_argument("--host", default="localhost", help="Remote debugging host")
     parser.add_argument("--port", type=int, default=9222, help="Remote debugging port")
     parser.add_argument(
         "--path",
@@ -92,7 +91,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    data = fetch_json(args.host, args.port, args.path, args.timeout)
+    data = fetch_json("127.0.0.1", args.port, args.path, args.timeout)
     targets = normalize_targets(data)
     targets = filter_targets(targets, args.match)
     if not targets:

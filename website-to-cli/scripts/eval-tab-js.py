@@ -5,12 +5,16 @@ from __future__ import annotations
 """Run JavaScript in an already-open tab selected by exact URL."""
 
 import argparse
+import asyncio
 import json
 import sys
+from typing import Any
+from urllib.request import Request, urlopen
 
-from playwright.sync_api import sync_playwright
+import websockets
 
-from cdp_common import DEFAULT_ENDPOINT, find_page_by_exact_url, get_ws_url
+
+DEFAULT_ENDPOINT = "http://127.0.0.1:9222"
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -29,35 +33,62 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def read_code(args: argparse.Namespace) -> str:
-    code = args.code
-    if not code:
-        code = sys.stdin.read()
+    code = args.code or sys.stdin.read()
     code = code.strip()
     if not code:
         raise RuntimeError("Missing JavaScript code. Pass --code or pipe code via stdin.")
     return code
 
 
-def eval_in_tab(url: str, code: str, endpoint: str = DEFAULT_ENDPOINT):
-    code = code.strip()
-    if not code:
-        raise RuntimeError("Missing JavaScript code.")
+def fetch_json(endpoint: str, path: str) -> Any:
+    request = Request(f"{endpoint.rstrip('/')}{path}", headers={"User-Agent": "website-to-cli/eval-tab-js"})
+    with urlopen(request, timeout=5) as response:
+        return json.loads(response.read().decode("utf-8"))
 
-    ws_url = get_ws_url(endpoint)
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.connect_over_cdp(ws_url)
-        try:
-            page = find_page_by_exact_url(browser, url)
-            return page.evaluate(code)
-        finally:
-            browser.close()
+
+def find_page_ws(endpoint: str, url: str) -> str:
+    tabs = fetch_json(endpoint, "/json/list")
+    for tab in tabs:
+        if tab.get("type") == "page" and tab.get("url") == url:
+            ws_url = tab.get("webSocketDebuggerUrl")
+            if not ws_url:
+                raise RuntimeError(f"Tab has no webSocketDebuggerUrl: {url}")
+            return ws_url.replace("ws://localhost:", "ws://127.0.0.1:")
+    raise RuntimeError(f"Exact tab not found for URL: {url}")
+
+
+async def eval_over_cdp(ws_url: str, code: str) -> Any:
+    async with websockets.connect(ws_url, open_timeout=5, close_timeout=2, max_size=None) as websocket:
+        await websocket.send(
+            json.dumps(
+                {
+                    "id": 1,
+                    "method": "Runtime.evaluate",
+                    "params": {
+                        "expression": code,
+                        "awaitPromise": True,
+                        "returnByValue": True,
+                    },
+                }
+            )
+        )
+        while True:
+            message = json.loads(await asyncio.wait_for(websocket.recv(), timeout=10))
+            if message.get("id") != 1:
+                continue
+            if "error" in message:
+                raise RuntimeError(json.dumps(message["error"], ensure_ascii=False))
+            result = message.get("result", {}).get("result", {})
+            if result.get("subtype") == "error":
+                raise RuntimeError(result.get("description") or result.get("value") or "Runtime.evaluate error")
+            return result.get("value")
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
     code = read_code(args)
-    result = eval_in_tab(args.url, code, args.endpoint)
-
+    ws_url = find_page_ws(args.endpoint, args.url)
+    result = asyncio.run(eval_over_cdp(ws_url, code))
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
     return 0
 

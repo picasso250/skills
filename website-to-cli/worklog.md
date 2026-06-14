@@ -3,3 +3,4 @@
 - 2026-06-03: Added `scripts/collect-console.py` to capture new console messages from an existing Chrome CDP tab matched by exact URL.
 - 2026-06-03: Documented `collect-console.py` in `SKILL.md`.
 - 2026-06-11: Renamed `scripts/eval_tab_js.py` to `scripts/eval-tab-js.py` and updated skill references.
+- 2026-06-14: Verified Playwright browser-level CDP attach can hang on the local browser; updated `eval-tab-js.py`, `collect-console.py`, and `new-tab.py` to use page-level WebSocket or DevTools HTTP paths.

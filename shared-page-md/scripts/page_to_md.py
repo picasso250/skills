@@ -10,6 +10,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
+import websockets
 from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 from playwright.async_api import async_playwright
 
@@ -499,9 +500,116 @@ async def get_ws_url() -> str | None:
     try:
         with urllib.request.urlopen(f"{BROWSER_ENDPOINT}/json/version", timeout=5) as response:
             data = json.loads(response.read().decode("utf-8"))
-            return data.get("webSocketDebuggerUrl")
+            ws_url = data.get("webSocketDebuggerUrl")
+            if ws_url:
+                return ws_url.replace("ws://localhost:", "ws://127.0.0.1:")
+            return None
     except Exception:
         return None
+
+
+def fetch_cdp_json(path: str):
+    with urllib.request.urlopen(f"{BROWSER_ENDPOINT}{path}", timeout=5) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def find_existing_page_ws(url: str) -> str | None:
+    try:
+        tabs = fetch_cdp_json("/json/list")
+    except Exception:
+        return None
+
+    for tab in tabs:
+        if tab.get("type") != "page":
+            continue
+        if not url_matches(str(tab.get("url", "")), url):
+            continue
+        ws_url = tab.get("webSocketDebuggerUrl")
+        if ws_url:
+            return ws_url
+    return None
+
+
+async def eval_over_page_cdp(ws_url: str, expression: str):
+    async with websockets.connect(ws_url, open_timeout=5, close_timeout=2, max_size=None) as websocket:
+        await websocket.send(
+            json.dumps(
+                {
+                    "id": 1,
+                    "method": "Runtime.evaluate",
+                    "params": {
+                        "expression": expression,
+                        "awaitPromise": True,
+                        "returnByValue": True,
+                    },
+                }
+            )
+        )
+        while True:
+            message = json.loads(await asyncio.wait_for(websocket.recv(), timeout=10))
+            if message.get("id") != 1:
+                continue
+            if "error" in message:
+                raise RuntimeError(json.dumps(message["error"], ensure_ascii=False))
+            result = message.get("result", {}).get("result", {})
+            if result.get("subtype") == "error":
+                raise RuntimeError(result.get("description") or result.get("value") or "Runtime.evaluate error")
+            return result.get("value")
+
+
+async def fetch_existing_tab_html(url: str) -> str | None:
+    ws_url = find_existing_page_ws(url)
+    if not ws_url:
+        return None
+    return await eval_over_page_cdp(
+        ws_url,
+        """
+        (() => {
+          const clone = document.documentElement.cloneNode(true);
+
+          const syncByIndex = (selector, updater) => {
+            const liveNodes = Array.from(document.querySelectorAll(selector));
+            const clonedNodes = Array.from(clone.querySelectorAll(selector));
+            const count = Math.min(liveNodes.length, clonedNodes.length);
+            for (let i = 0; i < count; i += 1) {
+              updater(liveNodes[i], clonedNodes[i]);
+            }
+          };
+
+          syncByIndex('input', (live, copied) => {
+            const type = (live.getAttribute('type') || '').toLowerCase();
+            if (type === 'checkbox' || type === 'radio') {
+              if (live.checked) {
+                copied.setAttribute('checked', 'checked');
+              } else {
+                copied.removeAttribute('checked');
+              }
+              return;
+            }
+            copied.setAttribute('value', live.value || '');
+          });
+
+          syncByIndex('textarea', (live, copied) => {
+            copied.textContent = live.value || '';
+          });
+
+          syncByIndex('select', (live, copied) => {
+            const liveOptions = Array.from(live.options);
+            const copiedOptions = Array.from(copied.options);
+            const optionCount = Math.min(liveOptions.length, copiedOptions.length);
+            for (let i = 0; i < optionCount; i += 1) {
+              if (liveOptions[i].selected) {
+                copiedOptions[i].setAttribute('selected', 'selected');
+              } else {
+                copiedOptions[i].removeAttribute('selected');
+              }
+            }
+          });
+
+          return '<!DOCTYPE html>\\n' + clone.outerHTML;
+        })()
+        """,
+    )
 
 
 def normalize_match_url(raw_url: str) -> str | None:
@@ -527,6 +635,11 @@ def url_matches(candidate: str, target: str) -> bool:
 
 async def fetch_html(url: str, timeout_seconds: int, refresh: bool = False, adapter=None) -> str:
     timeout_ms = timeout_seconds * 1000
+    if not refresh and adapter is None:
+        html = await fetch_existing_tab_html(url)
+        if html:
+            return html
+
     playwright = await async_playwright().start()
     browser = None
     page = None

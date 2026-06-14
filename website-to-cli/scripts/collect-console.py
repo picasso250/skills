@@ -5,14 +5,17 @@ from __future__ import annotations
 """Collect console messages from an already-open tab selected by exact URL."""
 
 import argparse
+import asyncio
 import json
 import sys
 import time
 from typing import Any
+from urllib.request import Request, urlopen
 
-from playwright.sync_api import ConsoleMessage, sync_playwright
+import websockets
 
-from cdp_common import DEFAULT_ENDPOINT, find_page_by_exact_url, get_ws_url
+
+DEFAULT_ENDPOINT = "http://127.0.0.1:9222"
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -45,23 +48,97 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def serialize_arg(value: Any) -> Any:
-    try:
-        return value.json_value()
-    except Exception:
-        return str(value)
+def fetch_json(endpoint: str, path: str) -> Any:
+    request = Request(f"{endpoint.rstrip('/')}{path}", headers={"User-Agent": "website-to-cli/collect-console"})
+    with urlopen(request, timeout=5) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
-def serialize_message(message: ConsoleMessage, include_location: bool) -> dict[str, Any]:
+def find_page_ws(endpoint: str, url: str) -> str:
+    tabs = fetch_json(endpoint, "/json/list")
+    for tab in tabs:
+        if tab.get("type") == "page" and tab.get("url") == url:
+            ws_url = tab.get("webSocketDebuggerUrl")
+            if not ws_url:
+                raise RuntimeError(f"Tab has no webSocketDebuggerUrl: {url}")
+            return ws_url.replace("ws://localhost:", "ws://127.0.0.1:")
+    raise RuntimeError(f"Exact tab not found for URL: {url}")
+
+
+def remote_object_value(remote: dict[str, Any]) -> Any:
+    if "value" in remote:
+        return remote["value"]
+    if "unserializableValue" in remote:
+        return remote["unserializableValue"]
+    if "description" in remote:
+        return remote["description"]
+    return remote.get("type")
+
+
+def runtime_message(params: dict[str, Any], include_location: bool) -> dict[str, Any]:
     item: dict[str, Any] = {
-        "type": message.type,
-        "text": message.text,
-        "args": [serialize_arg(arg) for arg in message.args],
+        "type": params.get("type", "log"),
+        "text": " ".join(str(remote_object_value(arg)) for arg in params.get("args", [])),
+        "args": [remote_object_value(arg) for arg in params.get("args", [])],
         "timestamp": time.time(),
     }
     if include_location:
-        item["location"] = message.location
+        stack = params.get("stackTrace", {})
+        frames = stack.get("callFrames", []) if isinstance(stack, dict) else []
+        frame = frames[0] if frames else {}
+        item["location"] = {
+            "url": frame.get("url", ""),
+            "lineNumber": frame.get("lineNumber"),
+            "columnNumber": frame.get("columnNumber"),
+        }
     return item
+
+
+def log_message(params: dict[str, Any], include_location: bool) -> dict[str, Any]:
+    entry = params.get("entry", {})
+    item: dict[str, Any] = {
+        "type": entry.get("level", "log"),
+        "text": entry.get("text", ""),
+        "args": [],
+        "timestamp": time.time(),
+    }
+    if include_location:
+        item["location"] = {
+            "url": entry.get("url", ""),
+            "lineNumber": entry.get("lineNumber"),
+            "columnNumber": None,
+        }
+    return item
+
+
+async def send_command(websocket, command_id: int, method: str) -> None:
+    await websocket.send(json.dumps({"id": command_id, "method": method}))
+
+
+async def collect_console_ws(ws_url: str, seconds: float, include_location: bool) -> list[dict[str, Any]]:
+    if seconds < 0:
+        raise RuntimeError("--seconds must be 0 or greater.")
+
+    messages: list[dict[str, Any]] = []
+    async with websockets.connect(ws_url, open_timeout=5, close_timeout=2, max_size=None) as websocket:
+        await send_command(websocket, 1, "Runtime.enable")
+        await send_command(websocket, 2, "Log.enable")
+        end_time = time.monotonic() + seconds
+        while True:
+            remaining = end_time - time.monotonic()
+            if remaining <= 0:
+                return messages
+            try:
+                raw = await asyncio.wait_for(websocket.recv(), timeout=remaining)
+            except asyncio.TimeoutError:
+                return messages
+            event = json.loads(raw)
+            method = event.get("method")
+            params = event.get("params", {})
+            if method == "Runtime.consoleAPICalled":
+                messages.append(runtime_message(params, include_location))
+            elif method == "Log.entryAdded":
+                messages.append(log_message(params, include_location))
 
 
 def format_message(item: dict[str, Any]) -> str:
@@ -76,30 +153,10 @@ def format_message(item: dict[str, Any]) -> str:
     return f"{prefix} {text}"
 
 
-def collect_console(url: str, endpoint: str, seconds: float, include_location: bool) -> list[dict[str, Any]]:
-    if seconds < 0:
-        raise RuntimeError("--seconds must be 0 or greater.")
-
-    ws_url = get_ws_url(endpoint)
-    messages: list[dict[str, Any]] = []
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.connect_over_cdp(ws_url)
-        try:
-            page = find_page_by_exact_url(browser, url)
-
-            def on_console(message: ConsoleMessage) -> None:
-                messages.append(serialize_message(message, include_location))
-
-            page.on("console", on_console)
-            page.wait_for_timeout(int(seconds * 1000))
-            return messages
-        finally:
-            browser.close()
-
-
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    messages = collect_console(args.url, args.endpoint, args.seconds, args.include_location)
+    ws_url = find_page_ws(args.endpoint, args.url)
+    messages = asyncio.run(collect_console_ws(ws_url, args.seconds, args.include_location))
 
     if args.jsonl:
         for item in messages:

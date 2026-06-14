@@ -47,11 +47,11 @@ Guide the user through capturing the manual story, attaching Playwright to Chrom
 其中前三个脚本是基础设施：
 - `fetch_ws.py` 用来确认 DevTools 连接信息和 `wsEndpoint`。
 - `ls-tabs.py` 用来确认当前有哪些标签页可复用，以及目标页面是否已经存在。
-- `new-tab.py` 用来在现有 DevTools 会话里稳定打开一个新的目标标签页；若存在多个 browser context，应通过 `--match-url` 显式选中目标 context。
+- `new-tab.py` 用 DevTools HTTP `/json/new` 在现有会话里稳定打开一个新的目标标签页，避免 browser-level Playwright attach 卡住。
 
 另外两个脚本用于现场观察：
 - `cdp_common.py` 提供 `webSocketDebuggerUrl` 解析、context/page 枚举、按精确 URL 选页等共用能力。
-- `eval-tab-js.py` 用来在已打开的目标 tab 上直接执行 JavaScript，快速获取 DOM 结构、文本、坐标、属性和页面状态。
+- `eval-tab-js.py` 用目标 tab 的 page-level WebSocket 直接执行 JavaScript，快速获取 DOM 结构、文本、坐标、属性和页面状态。
 - `collect-console.py` 用来监听已打开目标 tab 后续产生的 `console.log`/`console.error` 等 console 消息。
 
 ### Step 1: Capture the story and acceptance criteria
@@ -61,7 +61,7 @@ Guide the user through capturing the manual story, attaching Playwright to Chrom
 
 ### Step 2: Attach to Chrome DevTools and pin the websocket
 - Launch Chrome/Edge with `--remote-debugging-port=9222` and confirm you can reach `http://127.0.0.1:9222/json/version`.
-- Run `python scripts/fetch_ws.py --host localhost --port 9222` (swap `localhost` for a remote host if necessary) to list available tabs and their `webSocketDebuggerUrl`.
+- Run `python scripts/fetch_ws.py --port 9222` to list available tabs and their `webSocketDebuggerUrl`; the script uses `127.0.0.1` directly.
 - Never pass the raw `http://127.0.0.1:9222` endpoint straight into Playwright; resolve `/json/version` first and keep the returned `webSocketDebuggerUrl`.
 - Ask the user which page/window should drive the CLI, note its title/URL, and save the matching `wsEndpoint` for later.
 - If the target page is already open, prefer reusing that tab in the verification loop instead of opening a fresh one.
@@ -99,7 +99,7 @@ Guide the user through capturing the manual story, attaching Playwright to Chrom
 ## Resources
 - Use `references/human-in-loop.md` whenever you need phrasing for check-ins, progress updates, or describing trade-offs and open questions.
 - Read `scripts/fetch_ws.py`, `scripts/ls-tabs.py`, `scripts/new-tab.py`, `scripts/cdp_common.py`, and `scripts/eval-tab-js.py` before building a new site-specific script on top of this skill.
-- Run `python scripts/fetch_ws.py --host localhost --port 9222` before touching the CLI to capture the correct `webSocketDebuggerUrl`.
+- Run `python scripts/fetch_ws.py --port 9222` before touching the CLI to capture the correct `webSocketDebuggerUrl`.
 - Prefer reusing an existing matching tab discovered via `scripts/ls-tabs.py`; use `scripts/new-tab.py` only when no suitable page is already open.
 - Use `python scripts/eval-tab-js.py --url <exact-page-url> --code "<js>"` or pipe JS via stdin when you need to inspect a live tab before deciding selectors or physical click coordinates.
 - Use `python scripts/collect-console.py --url <exact-page-url> --seconds 10` when you need to capture new console output from a live tab.
